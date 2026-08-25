@@ -247,6 +247,26 @@
     background: var(--accent);
   }
 
+  .stat-tile.available { border-color: var(--success); }
+  .stat-tile.available::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--success);
+  }
+  .stat-tile.available .value { color: var(--success); }
+
+  .stat-tile.full { border-color: var(--warning); }
+  .stat-tile.full::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--warning);
+  }
+  .stat-tile.full .value { color: var(--warning); }
+
   section.panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -545,6 +565,12 @@
     <div class="stat-tile">
       <div class="label">عدد السيارات الداخلة اليوم</div>
       <div class="value numeric"><span id="statEntries">—</span></div>
+    </div>
+    <div class="stat-tile" id="availabilityTile" style="display:none">
+      <div class="label">الأماكن المتاحة</div>
+      <div class="value numeric">
+        <span id="statAvailable">—</span><span class="unit" id="statCapacityUnit"></span>
+      </div>
     </div>
   </div>
 
@@ -855,7 +881,7 @@
     try {
       const uid = currentSession && currentSession.user ? currentSession.user.id : null;
       const [lots, adminRows] = await Promise.all([
-        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate"),
+        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate,capacity"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
       ]);
       lotsById = {};
@@ -865,6 +891,27 @@
     } catch (_) {
       // Non-fatal — the dashboard still works without park labels.
     }
+  }
+
+  function renderAvailability() {
+    const tile = $("availabilityTile");
+    const uid = currentSession && currentSession.user ? currentSession.user.id : null;
+    const ownLot = uid ? lotsById[uid] : null;
+    const capacity = ownLot ? ownLot.capacity : null;
+
+    // Only shown for a single-park owner with a capacity set — a super
+    // admin's mixed multi-park view has no single capacity to compare against.
+    if (isSuperAdmin || capacity == null) {
+      tile.style.display = "none";
+      return;
+    }
+
+    const available = capacity - activeSessions.length;
+    tile.style.display = "";
+    tile.classList.toggle("available", available > 0);
+    tile.classList.toggle("full", available <= 0);
+    $("statAvailable").textContent = numberFmt.format(Math.max(0, available));
+    $("statCapacityUnit").textContent = " / " + numberFmt.format(capacity);
   }
 
   async function loadAll() {
@@ -888,6 +935,7 @@
       const revenue = closedToday.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
       $("statRevenue").textContent = numberFmt.format(revenue);
       $("statEntries").textContent = numberFmt.format(entriesToday.length);
+      renderAvailability();
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
       setLive(true);
