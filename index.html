@@ -635,13 +635,14 @@
 
   const $ = (id) => document.getElementById(id);
 
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("dashboard-sw.js").catch(() => {
-        // Installability is a nice-to-have — the dashboard still works fine without it.
-      });
-    });
-  }
+  // Deliberately no service worker: registering one plus the manifest below
+  // makes Chrome mint a full installable Android package (a "WebAPK") when
+  // an owner adds this page to their home screen — which Google Play
+  // Protect then scans like any freshly-sideloaded APK and often blocks as
+  // "unsafe" purely for having zero install history. Without a service
+  // worker, "Add to Home Screen" instead creates a lightweight bookmark
+  // shortcut (still uses the manifest's icon/name) that never goes through
+  // that scan.
 
   // --- Auth -----------------------------------------------------------
   // Each parking-lot owner signs in with their own Supabase Auth account.
