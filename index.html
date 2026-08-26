@@ -29,6 +29,8 @@
     --success-soft: #E2F6EC;
     --warning: #C77A1E;
     --warning-soft: #FBEEDD;
+    --danger: #C4392B;
+    --danger-soft: #FBE7E4;
     --shadow: 0 1px 2px rgba(20, 30, 45, 0.06), 0 8px 24px rgba(20, 30, 45, 0.05);
   }
 
@@ -46,6 +48,8 @@
       --success-soft: #103322;
       --warning: #E4AC4C;
       --warning-soft: #3A2A10;
+      --danger: #E0665A;
+      --danger-soft: #3A1815;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
     }
   }
@@ -63,6 +67,8 @@
     --success-soft: #103322;
     --warning: #E4AC4C;
     --warning-soft: #3A2A10;
+    --danger: #E0665A;
+    --danger-soft: #3A1815;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 
@@ -500,6 +506,153 @@
 
   .admin-col { display: none; }
   body.admin-mode .admin-col { display: table-cell; }
+
+  /* ---- subscription banner ---- */
+  .sub-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .sub-banner.show { display: flex; }
+  .sub-banner.warn {
+    background: var(--warning-soft);
+    color: var(--warning);
+    border: 1px solid var(--warning);
+  }
+  .sub-banner.dead {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+
+  /* ---- period filter: one row above what it controls ---- */
+  .period-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .period-tabs {
+    display: inline-flex;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .period-tab {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .period-tab:hover { color: var(--text); }
+  .period-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .period-tab.is-active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--shadow);
+  }
+  .period-note { font-size: 12px; color: var(--text-muted); }
+
+  .tariff-line {
+    font-size: 13px;
+    color: var(--text);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .tariff-line.muted { color: var(--text-muted); background: var(--surface-alt); }
+
+  /* ---- revenue chart ---- */
+  .chart-wrap { overflow-x: auto; padding: 18px 20px 8px; }
+  .chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    min-height: 190px;
+    min-width: min-content;
+  }
+  .bar-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    min-width: 34px;
+    flex: 1 1 0;
+    position: relative;
+  }
+  .bar-track {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: flex-end;
+  }
+  .bar {
+    width: 100%;
+    background: var(--accent);
+    /* Rounded data-end only, anchored to the baseline. */
+    border-radius: 4px 4px 0 0;
+    min-height: 2px;
+    transition: filter 0.12s ease;
+  }
+  .bar-col:hover .bar { filter: brightness(1.15); }
+  .bar-col.is-empty .bar { background: var(--border); }
+  .bar-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  /* Per-mark tooltip. */
+  .bar-col::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    background: var(--text);
+    color: var(--surface);
+    font-size: 11.5px;
+    font-family: "IBM Plex Sans Arabic", sans-serif;
+    padding: 5px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+    z-index: 5;
+  }
+  .bar-col:hover::after { opacity: 1; }
+
+  .chart-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bar, .bar-col::after { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -550,6 +703,23 @@
     <span id="errorText">تعذر الاتصال بقاعدة البيانات. تحقق من الإنترنت وحاول مرة أخرى.</span>
   </div>
 
+  <!-- Renewal warning. The app stops entirely when the subscription lapses,
+       so the owner must not be able to miss this from their phone. -->
+  <div class="sub-banner" id="subBanner"></div>
+
+  <!-- One filter row above the figures it controls. -->
+  <div class="period-row">
+    <div class="period-tabs" role="tablist" aria-label="الفترة">
+      <button class="period-tab is-active" data-period="today" role="tab" aria-selected="true">اليوم</button>
+      <button class="period-tab" data-period="week" role="tab" aria-selected="false">آخر 7 أيام</button>
+      <button class="period-tab" data-period="month" role="tab" aria-selected="false">هذا الشهر</button>
+      <button class="period-tab" data-period="year" role="tab" aria-selected="false">هذه السنة</button>
+    </div>
+    <span class="period-note" id="periodNote"></span>
+  </div>
+
+  <div class="tariff-line" id="tariffLine"></div>
+
   <div class="stats">
     <div class="stat-tile accent">
       <div class="label">
@@ -559,11 +729,11 @@
       <div class="value numeric"><span id="statActive">—</span></div>
     </div>
     <div class="stat-tile">
-      <div class="label">مبيعات اليوم</div>
-      <div class="value numeric"><span id="statRevenue">—</span><span class="unit">د.ع</span></div>
+      <div class="label" id="labelRevenue">مبيعات اليوم</div>
+      <div class="value numeric"><span id="statRevenue">—</span><span class="unit" id="revenueUnit">د.ع</span></div>
     </div>
     <div class="stat-tile">
-      <div class="label">عدد السيارات الداخلة اليوم</div>
+      <div class="label" id="labelEntries">عدد السيارات الداخلة اليوم</div>
       <div class="value numeric"><span id="statEntries">—</span></div>
     </div>
     <div class="stat-tile" id="availabilityTile" style="display:none">
@@ -573,6 +743,18 @@
       </div>
     </div>
   </div>
+
+  <!-- Daily takings. Hidden for the single-day view, where a bar chart of one
+       bar says nothing the tile above has not already said. -->
+  <section class="panel" id="chartPanel" style="display:none">
+    <div class="panel-head">
+      <h2>المبيعات اليومية</h2>
+      <span class="count-chip numeric" id="chartTotal"></span>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart" id="revenueChart"></div>
+    </div>
+  </section>
 
   <section class="panel">
     <div class="panel-head">
@@ -622,7 +804,7 @@
         </tbody>
       </table>
     </div>
-    <div class="empty-state" id="historyEmpty" style="display:none">لا توجد عمليات خروج مسجّلة اليوم</div>
+    <div class="empty-state" id="historyEmpty" style="display:none">لا توجد عمليات خروج مسجّلة في هذه الفترة</div>
   </section>
 
   <footer class="note">يتحدّث تلقائياً كل 20 ثانية · مصدر البيانات: Supabase</footer>
@@ -697,17 +879,62 @@
     saveSession(data);
   }
 
+  /// A refresh in flight, shared by every caller.
+  ///
+  /// This matters more than it looks: a page load fires five requests at once,
+  /// so once the access token expires they ALL get 401 together. Supabase
+  /// rotates refresh tokens — the first refresh consumes the old one — so
+  /// letting each request refresh independently means one succeeds and the
+  /// rest fail against a spent token, and a failed refresh signs the owner
+  /// out. That is exactly the "it asks me to log in again on every refresh"
+  /// symptom. Funnelling them through one promise fixes it.
+  let refreshInFlight = null;
+
   async function refreshSession() {
-    if (!currentSession || !currentSession.refresh_token) return false;
-    const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
-      method: "POST",
-      headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: currentSession.refresh_token }),
-    });
-    if (!res.ok) return false;
-    currentSession = await res.json();
-    saveSession(currentSession);
-    return true;
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+      if (!currentSession || !currentSession.refresh_token) return false;
+      try {
+        const res = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: currentSession.refresh_token }),
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (!data.access_token) return false;
+        currentSession = data;
+        saveSession(currentSession);
+        return true;
+      } catch {
+        return false; // offline: keep the session, try again next time
+      } finally {
+        // Cleared on the next tick so callers awaiting this one all see it.
+        setTimeout(() => { refreshInFlight = null; }, 0);
+      }
+    })();
+
+    return refreshInFlight;
+  }
+
+  /// Seconds of remaining validity below which we renew up front, rather
+  /// than letting a burst of requests discover the expiry as a wall of 401s.
+  const RENEW_MARGIN_SECONDS = 120;
+
+  function sessionExpiresAt() {
+    if (!currentSession) return 0;
+    if (currentSession.expires_at) return Number(currentSession.expires_at) * 1000;
+    return 0;
+  }
+
+  /// Renews the token before firing a batch of requests if it is about to
+  /// lapse. Silent when there is nothing to do.
+  async function ensureFreshSession() {
+    const expiry = sessionExpiresAt();
+    if (!expiry) return;
+    if (expiry - Date.now() > RENEW_MARGIN_SECONDS * 1000) return;
+    await refreshSession();
   }
 
   function signOut() {
@@ -749,8 +976,8 @@
   $("logoutBtn").addEventListener("click", signOut);
 
   const numberFmt = new Intl.NumberFormat("en-US");
-  const timeFmt = new Intl.DateTimeFormat("ar-IQ", { hour: "2-digit", minute: "2-digit", hour12: true });
-  const dateTimeFmt = new Intl.DateTimeFormat("ar-IQ", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true });
+  const timeFmt = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const dateTimeFmt = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true });
 
   function startOfTodayISO() {
     const d = new Date();
@@ -777,7 +1004,10 @@
     if (res.status === 401) {
       const refreshed = await refreshSession();
       if (!refreshed) {
-        signOut();
+        // Only give up the session if the server actually rejected the
+        // refresh. Offline, refreshSession also returns false, and signing
+        // out over a dropped connection would be wrong.
+        if (navigator.onLine !== false) signOut();
         throw new Error("انتهت الجلسة، الرجاء تسجيل الدخول مرة أخرى");
       }
       res = await fetch(SUPABASE_URL + path, { headers: authHeaders() });
@@ -790,6 +1020,38 @@
   let tickHandle = null;
   let lotsById = {};
   let isSuperAdmin = false;
+
+  /// The signed-in park's own row, or null for a super admin viewing all.
+  function ownLot() {
+    const uid = currentSession && currentSession.user ? currentSession.user.id : null;
+    return uid ? (lotsById[uid] || null) : null;
+  }
+
+  /// Currency label the owner set. Falls back to the Iraqi dinar, which is
+  /// what every park created before this field existed is using.
+  function currency() {
+    const lot = ownLot();
+    const c = lot && lot.currency ? String(lot.currency).trim() : "";
+    return c || "د.ع";
+  }
+
+  /// A one-line summary of the park's tariff, or null when none is set.
+  function tariffSummary() {
+    const lot = ownLot();
+    if (!lot || !lot.pricing_mode) return null;
+    const n = (v) => numberFmt.format(Number(v) || 0);
+    const unit = currency();
+    switch (lot.pricing_mode) {
+      case "flat":
+        return `سعر موحد: ${n(lot.flat_rate)} ${unit} — مهما طالت المدة`;
+      case "first_hour":
+        return `الساعة الأولى ${n(lot.first_hour_rate)} ${unit}، وبعدها ${n(lot.after_first_hour_rate)} ${unit} لبقية اليوم`;
+      case "hourly":
+        return `${n(lot.hourly_rate)} ${unit} عن كل ساعة — وأي جزء من ساعة يُحتسب ساعة كاملة`;
+      default:
+        return null;
+    }
+  }
 
   function parkInfo(ownerId) {
     const lot = lotsById[ownerId];
@@ -882,7 +1144,7 @@
     try {
       const uid = currentSession && currentSession.user ? currentSession.user.id : null;
       const [lots, adminRows] = await Promise.all([
-        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate,capacity"),
+        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
       ]);
       lotsById = {};
@@ -915,28 +1177,174 @@
     $("statCapacityUnit").textContent = " / " + numberFmt.format(capacity);
   }
 
+  // ---- reporting period -------------------------------------------------
+
+  /// The selected reporting period.
+  let period = "today";
+
+  const PERIOD_LABEL = {
+    today: { revenue: "مبيعات اليوم", entries: "عدد السيارات الداخلة اليوم" },
+    week: { revenue: "مبيعات آخر 7 أيام", entries: "السيارات الداخلة خلال 7 أيام" },
+    month: { revenue: "مبيعات هذا الشهر", entries: "السيارات الداخلة هذا الشهر" },
+    year: { revenue: "مبيعات هذه السنة", entries: "السيارات الداخلة هذه السنة" },
+  };
+
+  /// Start of the reporting window, at midnight so whole days are compared.
+  ///
+  /// Month and year are CALENDAR periods, not rolling windows: "this month"
+  /// must reset on the 1st, because that is what the owner reconciles their
+  /// takings against. A rolling 365 days also produced 13 bars with two
+  /// months both labelled آب, which is simply wrong.
+  function periodStart() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    if (period === "week") d.setDate(d.getDate() - 6);
+    else if (period === "month") d.setDate(1);
+    else if (period === "year") { d.setMonth(0); d.setDate(1); }
+    return d;
+  }
+
+  const dayKeyFmt = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { day: "2-digit", month: "2-digit" });
+  const monthKeyFmt = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { month: "short" });
+
+  /// Buckets closed sessions for the chart.
+  ///
+  /// A year is grouped by month, not by day: 365 bars is an unreadable smear,
+  /// and monthly totals are what a yearly report is actually for.
+  function bucketRevenue(rows) {
+    const byMonth = period === "year";
+    const buckets = new Map();
+
+    const cursor = periodStart();
+    const now = new Date();
+    if (byMonth) {
+      cursor.setDate(1);
+      while (cursor <= now) {
+        buckets.set(`${cursor.getFullYear()}-${cursor.getMonth()}`,
+          { label: monthKeyFmt.format(cursor), total: 0, count: 0 });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      while (cursor <= now) {
+        buckets.set(cursor.toDateString(),
+          { label: dayKeyFmt.format(cursor), total: 0, count: 0 });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
+    for (const row of rows) {
+      const exit = new Date(row.exit_time);
+      const key = byMonth
+        ? `${exit.getFullYear()}-${exit.getMonth()}`
+        : exit.toDateString();
+      const bucket = buckets.get(key);
+      if (!bucket) continue;
+      bucket.total += Number(row.amount) || 0;
+      bucket.count += 1;
+    }
+
+    return [...buckets.values()];
+  }
+
+  function renderChart(rows) {
+    const panel = $("chartPanel");
+    // One bar is not a chart — the stat tile above already says it.
+    if (period === "today") {
+      panel.style.display = "none";
+      return;
+    }
+    panel.style.display = "";
+
+    const buckets = bucketRevenue(rows);
+    const max = Math.max(...buckets.map((b) => b.total), 0);
+    const total = buckets.reduce((sum, b) => sum + b.total, 0);
+    $("chartTotal").textContent = numberFmt.format(total) + " " + currency();
+
+    const chart = $("revenueChart");
+    if (buckets.length === 0 || total === 0) {
+      chart.innerHTML =
+        '<div class="chart-empty">لا توجد مبيعات مسجّلة في هذه الفترة</div>';
+      return;
+    }
+
+    chart.innerHTML = buckets.map((b) => {
+      // Scale against the tallest bar; keep a hairline for zero days so the
+      // gap in trading is visible rather than blank.
+      const pct = max > 0 ? Math.max((b.total / max) * 100, b.total > 0 ? 3 : 0) : 0;
+      const tip = `${escapeHtml(b.label)} · ${numberFmt.format(b.total)} ${currency()} · ${numberFmt.format(b.count)} سيارة`;
+      return `<div class="bar-col${b.total === 0 ? " is-empty" : ""}" data-tip="${tip}">
+        <div class="bar-track"><div class="bar" style="height:${pct}%"></div></div>
+        <div class="bar-label">${escapeHtml(b.label)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /// The app stops completely when the subscription lapses, so the owner is
+  /// warned here too — this dashboard is what they check from their phone.
+  function renderSubscription(lot) {
+    const banner = $("subBanner");
+    const expiry = lot && lot.subscription_expires_at
+      ? new Date(lot.subscription_expires_at)
+      : null;
+
+    if (!expiry) {
+      banner.className = "sub-banner";
+      return;
+    }
+
+    const days = Math.ceil((expiry - new Date()) / 86400000);
+    const dateText = new Intl.DateTimeFormat("ar-IQ-u-nu-latn",
+      { day: "2-digit", month: "2-digit", year: "numeric" }).format(expiry);
+
+    if (days <= 0) {
+      banner.className = "sub-banner dead show";
+      banner.innerHTML =
+        `<span>⛔</span><span>انتهى اشتراكك في ${dateText} — التطبيق متوقف. يرجى التواصل للتجديد.</span>`;
+    } else if (days <= 5) {
+      banner.className = "sub-banner warn show";
+      banner.innerHTML =
+        `<span>⚠</span><span>يتبقى ${days} يوم على انتهاء اشتراكك (${dateText}) — يجب التجديد قبل توقف التطبيق.</span>`;
+    } else {
+      banner.className = "sub-banner";
+    }
+  }
+
   async function loadAll() {
     const btn = $("refreshBtn");
     btn.classList.add("spinning");
     try {
-      const todayStart = startOfTodayISO();
-      const todayEnd = endOfTodayISO();
+      // Renew up front so the batch below does not all hit 401 together.
+      await ensureFreshSession();
 
-      const [active, closedToday, entriesToday] = await Promise.all([
+      const from = periodStart().toISOString();
+      const to = endOfTodayISO();
+
+      const [active, closed, entries] = await Promise.all([
         fetchJSON("/rest/v1/parking_sessions?exit_time=is.null&select=id,owner_id,plate_number,entry_time&order=entry_time.desc"),
-        fetchJSON(`/rest/v1/parking_sessions?exit_time=gte.${todayStart}&exit_time=lte.${todayEnd}&select=id,owner_id,plate_number,entry_time,exit_time,amount&order=exit_time.desc`),
-        fetchJSON(`/rest/v1/parking_sessions?entry_time=gte.${todayStart}&entry_time=lte.${todayEnd}&select=id`),
+        fetchJSON(`/rest/v1/parking_sessions?exit_time=gte.${from}&exit_time=lte.${to}&select=id,owner_id,plate_number,entry_time,exit_time,amount&order=exit_time.desc`),
+        fetchJSON(`/rest/v1/parking_sessions?entry_time=gte.${from}&entry_time=lte.${to}&select=id`),
         loadLots(),
       ]);
 
       activeSessions = active;
       renderActiveTable();
-      renderHistoryTable(closedToday);
+      renderHistoryTable(closed);
+      renderChart(closed);
 
-      const revenue = closedToday.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+      const revenue = closed.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
       $("statRevenue").textContent = numberFmt.format(revenue);
-      $("statEntries").textContent = numberFmt.format(entriesToday.length);
+      $("statEntries").textContent = numberFmt.format(entries.length);
+      $("labelRevenue").textContent = PERIOD_LABEL[period].revenue;
+      $("labelEntries").textContent = PERIOD_LABEL[period].entries;
       renderAvailability();
+
+      $("revenueUnit").textContent = currency();
+      const summary = tariffSummary();
+      const tariffEl = $("tariffLine");
+      tariffEl.textContent = summary ?? "لم تُحدَّد تسعيرة — يُدخل العامل المبلغ يدوياً";
+      tariffEl.classList.toggle("muted", summary === null);
+
+      renderSubscription(ownLot());
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
       setLive(true);
@@ -947,6 +1355,21 @@
       btn.classList.remove("spinning");
     }
   }
+
+  document.querySelectorAll(".period-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      period = tab.dataset.period;
+      document.querySelectorAll(".period-tab").forEach((t) => {
+        const active = t === tab;
+        t.classList.toggle("is-active", active);
+        t.setAttribute("aria-selected", String(active));
+      });
+      $("periodNote").textContent = period !== "today"
+        ? `من ${new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { day: "2-digit", month: "2-digit" }).format(periodStart())} حتى اليوم`
+        : "";
+      loadAll();
+    });
+  });
 
   $("refreshBtn").addEventListener("click", loadAll);
 
