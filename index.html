@@ -570,16 +570,89 @@
   }
   .period-note { font-size: 12px; color: var(--text-muted); }
 
+  .tariff-body { padding: 16px 20px 20px; }
+
   .tariff-line {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text);
     background: var(--accent-soft);
-    border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 16px;
+    padding: 11px 14px;
   }
   .tariff-line.muted { color: var(--text-muted); background: var(--surface-alt); }
+
+  button.secondary-btn {
+    background: var(--surface-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.secondary-btn:hover { border-color: var(--accent); }
+  button.primary-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary-btn:disabled { opacity: 0.6; cursor: default; }
+  button.secondary-btn:focus-visible,
+  button.primary-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .tariff-form { margin-top: 14px; }
+  .form-hint { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 12px; }
+
+  .field-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 180px; }
+  .field > span { font-size: 12.5px; color: var(--text-muted); }
+  .field small { font-size: 11px; color: var(--text-muted); }
+  .field input {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+  .field input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .mode-card {
+    display: block;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .mode-card:has(input:checked) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .mode-head { display: flex; align-items: flex-start; gap: 10px; }
+  .mode-head input { margin-top: 3px; accent-color: var(--accent); flex: none; }
+  .mode-head strong { font-size: 14px; display: block; }
+  .mode-head small { font-size: 11.5px; color: var(--text-muted); display: block; margin-top: 2px; }
+
+  /* Rates only matter for the selected mode, so they stay out of the way
+     until it is chosen rather than presenting every field at once. */
+  .mode-fields { display: none; gap: 12px; margin: 12px 0 2px; padding-inline-start: 26px; }
+  .mode-card:has(input:checked) .mode-fields { display: flex; flex-wrap: wrap; }
+
+  .form-msg { display: none; font-size: 13px; margin: 10px 0; }
+  .form-msg.show { display: block; }
+  .form-msg.error { color: var(--danger); }
+  .form-msg.ok { color: var(--success); }
+
+  .form-actions { display: flex; gap: 10px; margin-top: 14px; }
 
   /* ---- revenue chart ---- */
   .chart-wrap { overflow-x: auto; padding: 18px 20px 8px; }
@@ -718,7 +791,93 @@
     <span class="period-note" id="periodNote"></span>
   </div>
 
-  <div class="tariff-line" id="tariffLine"></div>
+  <!-- The owner reads this dashboard on their phone while the POS device is
+       with the worker, so pricing is set here, not only in the app. -->
+  <section class="panel tariff-panel" id="tariffPanel" style="display:none">
+    <div class="panel-head">
+      <h2>تسعيرة الموقف</h2>
+      <button class="secondary-btn" id="tariffEditBtn" type="button">تعديل</button>
+    </div>
+
+    <div class="tariff-body">
+      <div class="tariff-line" id="tariffLine"></div>
+
+      <form class="tariff-form" id="tariffForm" style="display:none">
+        <div class="field-row">
+          <label class="field">
+            <span>العملة</span>
+            <input type="text" id="fCurrency" maxlength="10" placeholder="د.ع" />
+            <small>تظهر على الوصل وفي التقارير</small>
+          </label>
+        </div>
+
+        <p class="form-hint">
+          اختر طريقة واحدة للتسعير، أو لا تختر شيئاً ليُدخل العامل المبلغ يدوياً.
+        </p>
+
+        <label class="mode-card" for="mFlat">
+          <div class="mode-head">
+            <input type="radio" name="pmode" id="mFlat" value="flat" />
+            <div>
+              <strong>مدة مفتوحة — سعر واحد</strong>
+              <small>مهما بقيت السيارة، المبلغ نفسه</small>
+            </div>
+          </div>
+          <div class="mode-fields" data-for="flat">
+            <label class="field"><span>السعر</span>
+              <input type="number" min="0" step="any" id="fFlat" /></label>
+          </div>
+        </label>
+
+        <label class="mode-card" for="mFirst">
+          <div class="mode-head">
+            <input type="radio" name="pmode" id="mFirst" value="first_hour" />
+            <div>
+              <strong>ساعة أولى ثم سعر ثابت</strong>
+              <small>ضمن الساعة الأولى سعر، وبعدها مبلغ ثابت لبقية اليوم مهما طالت المدة</small>
+            </div>
+          </div>
+          <div class="mode-fields" data-for="first_hour">
+            <label class="field"><span>سعر الساعة الأولى</span>
+              <input type="number" min="0" step="any" id="fFirst" /></label>
+            <label class="field"><span>السعر بعد الساعة الأولى</span>
+              <input type="number" min="0" step="any" id="fAfter" /></label>
+          </div>
+        </label>
+
+        <label class="mode-card" for="mHourly">
+          <div class="mode-head">
+            <input type="radio" name="pmode" id="mHourly" value="hourly" />
+            <div>
+              <strong>بالساعات</strong>
+              <small>سعر عن كل ساعة — وأي جزء من ساعة يُحتسب ساعة كاملة</small>
+            </div>
+          </div>
+          <div class="mode-fields" data-for="hourly">
+            <label class="field"><span>سعر الساعة</span>
+              <input type="number" min="0" step="any" id="fHourly" /></label>
+          </div>
+        </label>
+
+        <label class="mode-card" for="mNone">
+          <div class="mode-head">
+            <input type="radio" name="pmode" id="mNone" value="" />
+            <div>
+              <strong>بدون تسعيرة</strong>
+              <small>العامل يُدخل المبلغ يدوياً في كل مرة</small>
+            </div>
+          </div>
+        </label>
+
+        <div class="form-msg" id="tariffMsg"></div>
+
+        <div class="form-actions">
+          <button class="primary-btn" id="tariffSaveBtn" type="submit">حفظ</button>
+          <button class="secondary-btn" id="tariffCancelBtn" type="button">إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </section>
 
   <div class="stats">
     <div class="stat-tile accent">
@@ -1309,6 +1468,128 @@
     }
   }
 
+
+  // ---- tariff editor ----------------------------------------------------
+
+  /// Shows the park's current tariff, and the controls to change it.
+  /// Hidden entirely for a super admin viewing every park at once — there is
+  /// no single tariff to show, and no one park to edit.
+  function renderTariff() {
+    const panel = $("tariffPanel");
+    const lot = ownLot();
+    if (!lot) { panel.style.display = "none"; return; }
+    panel.style.display = "";
+
+    const summary = tariffSummary();
+    const line = $("tariffLine");
+    line.textContent = summary ?? "لم تُحدَّد تسعيرة — يُدخل العامل المبلغ يدوياً";
+    line.classList.toggle("muted", summary === null);
+  }
+
+  /// Fills the form from what is stored, so opening it never silently
+  /// discards rates the owner set earlier.
+  function fillTariffForm() {
+    const lot = ownLot() || {};
+    const val = (v) => (v === null || v === undefined ? "" : v);
+
+    $("fCurrency").value = lot.currency ? String(lot.currency).trim() : "";
+    $("fFlat").value = val(lot.flat_rate);
+    $("fFirst").value = val(lot.first_hour_rate);
+    $("fAfter").value = val(lot.after_first_hour_rate);
+    $("fHourly").value = val(lot.hourly_rate);
+
+    const mode = lot.pricing_mode || "";
+    const byMode = { flat: "mFlat", first_hour: "mFirst", hourly: "mHourly", "": "mNone" };
+    const el = $(byMode[mode] || "mNone");
+    if (el) el.checked = true;
+  }
+
+  function selectedMode() {
+    const picked = document.querySelector('input[name="pmode"]:checked');
+    return picked ? picked.value : "";
+  }
+
+  function showTariffMsg(text, kind) {
+    const el = $("tariffMsg");
+    el.textContent = text;
+    el.className = "form-msg show " + kind;
+  }
+
+  function openTariffForm(open) {
+    $("tariffForm").style.display = open ? "" : "none";
+    $("tariffLine").style.display = open ? "none" : "";
+    $("tariffEditBtn").style.display = open ? "none" : "";
+    $("tariffMsg").className = "form-msg";
+    if (open) fillTariffForm();
+  }
+
+  $("tariffEditBtn").addEventListener("click", () => openTariffForm(true));
+  $("tariffCancelBtn").addEventListener("click", () => openTariffForm(false));
+
+  $("tariffForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const mode = selectedMode();
+    const num = (id) => {
+      const raw = $(id).value.trim();
+      if (raw === "") return null;
+      const n = Number(raw);
+      return Number.isFinite(n) && n >= 0 ? n : NaN;
+    };
+
+    const body = {
+      pricingMode: mode === "" ? null : mode,
+      flatRate: num("fFlat"),
+      firstHourRate: num("fFirst"),
+      afterFirstHourRate: num("fAfter"),
+      hourlyRate: num("fHourly"),
+      currency: $("fCurrency").value.trim(),
+    };
+
+    if (Object.values(body).some((v) => typeof v === "number" && Number.isNaN(v))) {
+      showTariffMsg("الأسعار يجب أن تكون أرقاماً موجبة", "error");
+      return;
+    }
+
+    // Check here as well as on the server so the owner gets a specific
+    // message naming the empty field, not a generic failure.
+    const needed = {
+      flat: [["fFlat", "السعر الموحد"]],
+      first_hour: [["fFirst", "سعر الساعة الأولى"], ["fAfter", "السعر بعد الساعة الأولى"]],
+      hourly: [["fHourly", "سعر الساعة"]],
+    }[mode] || [];
+    const missing = needed.filter(([id]) => $(id).value.trim() === "").map(([, label]) => label);
+    if (missing.length) {
+      showTariffMsg("أكمل: " + missing.join("، "), "error");
+      return;
+    }
+
+    const btn = $("tariffSaveBtn");
+    btn.disabled = true;
+    btn.textContent = "جارِ الحفظ...";
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/set-park-pricing", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل حفظ التسعيرة");
+
+      // Adopt the row the server actually saved rather than assuming.
+      lotsById[data.lot.owner_id] = data.lot;
+      openTariffForm(false);
+      renderTariff();
+      $("revenueUnit").textContent = currency();
+      showTariffMsg("تم حفظ التسعيرة", "ok");
+    } catch (err) {
+      showTariffMsg(err.message, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "حفظ";
+    }
+  });
+
   async function loadAll() {
     const btn = $("refreshBtn");
     btn.classList.add("spinning");
@@ -1339,11 +1620,7 @@
       renderAvailability();
 
       $("revenueUnit").textContent = currency();
-      const summary = tariffSummary();
-      const tariffEl = $("tariffLine");
-      tariffEl.textContent = summary ?? "لم تُحدَّد تسعيرة — يُدخل العامل المبلغ يدوياً";
-      tariffEl.classList.toggle("muted", summary === null);
-
+      renderTariff();
       renderSubscription(ownLot());
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
