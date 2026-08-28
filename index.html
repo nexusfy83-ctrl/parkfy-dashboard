@@ -531,6 +531,45 @@
     border: 1px solid var(--danger);
   }
 
+  /* ---- ZainCash renewal (owners) and its on/off switch (super admin) --- */
+  .zaincash-panel {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    font-size: 13.5px;
+  }
+  .zaincash-panel.show { display: flex; }
+  .zaincash-panel select {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+  }
+  .zaincash-panel button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .zaincash-panel button:disabled { opacity: .6; cursor: default; }
+  .zaincash-panel .msg { font-size: 12.5px; color: var(--text-muted); }
+
+  .zaincash-admin-toggle { display: none; }
+  body.admin-mode .zaincash-admin-toggle { display: inline-flex; }
+
   /* ---- period filter: one row above what it controls ---- */
   .period-row {
     display: flex;
@@ -767,6 +806,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
         تحديث
       </button>
+      <!-- Super admin only: one switch for whether the "renew via ZainCash"
+           panel below shows up for owners at all. Hidden entirely for
+           regular owners via .zaincash-admin-toggle's CSS. -->
+      <button class="refresh zaincash-admin-toggle" id="zaincashAdminToggleBtn" type="button">
+        ...
+      </button>
       <button class="refresh" id="logoutBtn" type="button">تسجيل الخروج</button>
     </div>
   </header>
@@ -779,6 +824,21 @@
   <!-- Renewal warning. The app stops entirely when the subscription lapses,
        so the owner must not be able to miss this from their phone. -->
   <div class="sub-banner" id="subBanner"></div>
+
+  <!-- Self-serve renewal. Hidden entirely (via .show) unless the super
+       admin has ZainCash turned on and this account has its own park to
+       renew — a super admin viewing all parks has neither. -->
+  <div class="zaincash-panel" id="zaincashPanel">
+    <span>تجديد الاشتراك عبر ZainCash:</span>
+    <select id="zaincashMonths">
+      <option value="1">شهر واحد</option>
+      <option value="3">3 أشهر</option>
+      <option value="6">6 أشهر</option>
+      <option value="12">سنة</option>
+    </select>
+    <button id="zaincashPayBtn" type="button">ادفع الآن</button>
+    <span class="msg" id="zaincashMsg"></span>
+  </div>
 
   <!-- One filter row above the figures it controls. -->
   <div class="period-row">
@@ -1179,6 +1239,7 @@
   let tickHandle = null;
   let lotsById = {};
   let isSuperAdmin = false;
+  let zaincashEnabled = false;
 
   /// The signed-in park's own row, or null for a super admin viewing all.
   function ownLot() {
@@ -1302,18 +1363,82 @@
   async function loadLots() {
     try {
       const uid = currentSession && currentSession.user ? currentSession.user.id : null;
-      const [lots, adminRows] = await Promise.all([
+      const [lots, adminRows, settingsRows] = await Promise.all([
         fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
+        fetchJSON("/rest/v1/platform_settings?key=eq.zaincash_enabled&select=value"),
       ]);
       lotsById = {};
       lots.forEach((l) => { lotsById[l.owner_id] = l; });
       isSuperAdmin = adminRows.length > 0;
       document.body.classList.toggle("admin-mode", isSuperAdmin);
+      zaincashEnabled = settingsRows.length > 0 && settingsRows[0].value === "true";
+      renderZaincashAdminToggle();
+      renderZaincashPanel();
     } catch (_) {
       // Non-fatal — the dashboard still works without park labels.
     }
   }
+
+  /// The super admin's one switch for the ZainCash renewal panel — flips
+  /// `platform_settings.zaincash_enabled`, which every owner's dashboard
+  /// reads to decide whether to show it at all. Swapping in a different
+  /// payment method later means turning this off, not changing any code.
+  function renderZaincashAdminToggle() {
+    const btn = $("zaincashAdminToggleBtn");
+    btn.textContent = zaincashEnabled ? "إخفاء زر الدفع (ZainCash)" : "إظهار زر الدفع (ZainCash)";
+  }
+
+  $("zaincashAdminToggleBtn").addEventListener("click", async () => {
+    const btn = $("zaincashAdminToggleBtn");
+    btn.disabled = true;
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/toggle-zaincash", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !zaincashEnabled }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل تبديل الحالة");
+      zaincashEnabled = data.enabled;
+      renderZaincashAdminToggle();
+      renderZaincashPanel();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /// Shown only to a park owner (not the super admin, who has no single
+  /// park to renew) once ZainCash is switched on.
+  function renderZaincashPanel() {
+    const panel = $("zaincashPanel");
+    panel.classList.toggle("show", zaincashEnabled && !isSuperAdmin && !!ownLot());
+  }
+
+  $("zaincashPayBtn").addEventListener("click", async () => {
+    const btn = $("zaincashPayBtn");
+    const msg = $("zaincashMsg");
+    const months = Number($("zaincashMonths").value);
+    btn.disabled = true;
+    msg.textContent = "جارِ التحويل لصفحة الدفع...";
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/zaincash-create-payment", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ months }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "تعذر بدء الدفع");
+      window.location.href = data.redirectUrl;
+    } catch (err) {
+      msg.textContent = err.message;
+      btn.disabled = false;
+    }
+  });
 
   function renderAvailability() {
     const tile = $("availabilityTile");
@@ -1650,7 +1775,13 @@
 
   $("refreshBtn").addEventListener("click", loadAll);
 
-  setInterval(() => { if (currentSession) loadAll(); }, 20000);
+  // 5s to match the app's own refresh cadence — a car checked in on a
+  // worker's phone should show here within a few seconds, not up to 20.
+  // Skipped while the tab is hidden: a background tab nobody is looking at
+  // has no reason to keep hitting the database on a timer.
+  setInterval(() => {
+    if (currentSession && document.visibilityState === "visible") loadAll();
+  }, 5000);
   tickHandle = setInterval(tickDurations, 1000);
 </script>
 </body>
