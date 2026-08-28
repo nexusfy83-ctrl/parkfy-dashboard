@@ -567,8 +567,11 @@
   .zaincash-panel button:disabled { opacity: .6; cursor: default; }
   .zaincash-panel .msg { font-size: 12.5px; color: var(--text-muted); }
 
-  .zaincash-admin-toggle { display: none; }
-  body.admin-mode .zaincash-admin-toggle { display: inline-flex; }
+  /* button.refresh (line ~164) also sets display: inline-flex at the same
+     "element + class" specificity — matching that specificity here (not
+     just .zaincash-admin-toggle alone) is what actually wins the hide. */
+  button.refresh.zaincash-admin-toggle { display: none; }
+  body.admin-mode button.refresh.zaincash-admin-toggle { display: inline-flex; }
 
   /* ---- period filter: one row above what it controls ---- */
   .period-row {
@@ -796,7 +799,7 @@
       <div class="brand-mark">P</div>
       <div class="brand-text">
         <h1 class="heading">لوحة تحكم الموقف</h1>
-        <p>متابعة السيارات والمبيعات لحظياً</p>
+        <p id="accountLine">متابعة السيارات والمبيعات لحظياً</p>
       </div>
     </div>
     <div class="status-row">
@@ -1364,7 +1367,7 @@
     try {
       const uid = currentSession && currentSession.user ? currentSession.user.id : null;
       const [lots, adminRows, settingsRows] = await Promise.all([
-        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
+        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,owner_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
         fetchJSON("/rest/v1/platform_settings?key=eq.zaincash_enabled&select=value"),
       ]);
@@ -1375,6 +1378,7 @@
       zaincashEnabled = settingsRows.length > 0 && settingsRows[0].value === "true";
       renderZaincashAdminToggle();
       renderZaincashPanel();
+      renderAccountLine();
     } catch (_) {
       // Non-fatal — the dashboard still works without park labels.
     }
@@ -1410,6 +1414,25 @@
       btn.disabled = false;
     }
   });
+
+  /// Identifies whoever is looking at the dashboard right now — the park
+  /// and owner name for a regular account, or "سوبر أدمن" for the account
+  /// that manages every park. Read from the signed-in email otherwise, in
+  /// the rare case a park's profile row has not loaded yet.
+  function renderAccountLine() {
+    const el = $("accountLine");
+    if (isSuperAdmin) {
+      el.textContent = "سوبر أدمن";
+      return;
+    }
+    const lot = ownLot();
+    const email = currentSession && currentSession.user ? currentSession.user.email : "";
+    if (lot) {
+      el.textContent = `${lot.park_name} — ${lot.owner_name}`;
+    } else {
+      el.textContent = email || "متابعة السيارات والمبيعات لحظياً";
+    }
+  }
 
   /// Shown only to a park owner (not the super admin, who has no single
   /// park to renew) once ZainCash is switched on.
