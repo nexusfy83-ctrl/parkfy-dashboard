@@ -1529,7 +1529,7 @@
     try {
       const uid = currentSession && currentSession.user ? currentSession.user.id : null;
       const [lots, adminRows, settingsRows] = await Promise.all([
-        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,owner_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
+        fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,owner_name,phone,email,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
         fetchJSON("/rest/v1/platform_settings?key=in.(zaincash_enabled,subscription_price_per_month_iqd)&select=key,value"),
       ]);
