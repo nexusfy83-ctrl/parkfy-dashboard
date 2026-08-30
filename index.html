@@ -675,6 +675,8 @@
     cursor: pointer;
   }
   button.secondary-btn:hover { border-color: var(--accent); }
+  button.secondary-btn.danger-btn { color: var(--danger); border-color: var(--danger); }
+  button.secondary-btn.danger-btn:hover { background: var(--danger-soft); }
   button.primary-btn {
     background: var(--accent);
     color: #fff;
@@ -1058,7 +1060,27 @@
         </div>
         <div class="form-msg" id="apdSubMsg"></div>
 
-        <form class="tariff-form" id="apdEditForm" style="margin-top:18px">
+        <!-- Read-only view — always shows what is actually stored, so a
+             genuinely empty phone/email reads as "not set", not as a form
+             that silently failed to load. -->
+        <div id="apdInfoView" style="margin-top:18px">
+          <div class="tariff-line" style="display:grid;gap:6px">
+            <div><span style="color:var(--text-muted)">صاحب الموقف:</span> <strong id="viewOwnerName">—</strong></div>
+            <div><span style="color:var(--text-muted)">رقم الهاتف:</span> <strong id="viewPhone">—</strong></div>
+            <div><span style="color:var(--text-muted)">المحافظة:</span> <strong id="viewGovernorate">—</strong></div>
+            <div><span style="color:var(--text-muted)">البريد الإلكتروني:</span> <strong id="viewEmail">—</strong></div>
+            <div><span style="color:var(--text-muted)">السعة:</span> <strong id="viewCapacity">—</strong></div>
+          </div>
+          <div class="form-actions" style="margin-top:12px">
+            <button class="secondary-btn" id="apdEditBtn" type="button">تعديل</button>
+            <button class="secondary-btn" id="apdResetPwBtn" type="button">إعادة تعيين كلمة المرور</button>
+            <button class="secondary-btn" id="apdCopyLinkBtn" type="button">نسخ رابط اللوحة</button>
+            <button class="secondary-btn danger-btn" id="apdCloseBtn" type="button">إغلاق</button>
+          </div>
+          <div class="form-msg" id="apdViewMsg"></div>
+        </div>
+
+        <form class="tariff-form" id="apdEditForm" style="margin-top:18px;display:none">
           <div class="field-row">
             <label class="field"><span>اسم الموقف</span><input type="text" id="apdParkName" required /></label>
             <label class="field"><span>اسم صاحب الموقف</span><input type="text" id="apdOwnerName" required /></label>
@@ -1074,9 +1096,7 @@
           <div class="form-msg" id="apdEditMsg"></div>
           <div class="form-actions">
             <button class="primary-btn" type="submit">حفظ التعديلات</button>
-            <button class="secondary-btn" id="apdResetPwBtn" type="button">إعادة تعيين كلمة المرور</button>
-            <button class="secondary-btn" id="apdCopyLinkBtn" type="button">نسخ رابط اللوحة</button>
-            <button class="secondary-btn" id="apdCloseBtn" type="button">إغلاق</button>
+            <button class="secondary-btn" id="apdEditCancelBtn" type="button">إلغاء</button>
           </div>
         </form>
       </div>
@@ -2053,14 +2073,10 @@
     if (!lot) return;
 
     $("adminParkDetail").style.display = "";
-    $("apdTitle").textContent = lot.park_name || "—";
-    $("apdParkName").value = lot.park_name || "";
-    $("apdOwnerName").value = lot.owner_name || "";
-    $("apdPhone").value = lot.phone || "";
-    $("apdGovernorate").value = lot.governorate || "";
-    $("apdEmail").value = lot.email || "";
-    $("apdCapacity").value = lot.capacity ?? "";
+    fillParkDetailFields(lot);
+    showParkEditForm(false);
     $("apdEditMsg").className = "form-msg";
+    $("apdViewMsg").className = "form-msg";
     $("apdSubMsg").className = "form-msg";
     renderSubStatus(lot);
 
@@ -2088,6 +2104,33 @@
       $("apdEntries").textContent = "—";
     }
   }
+
+  /// A genuinely empty phone/email should read as "not set" (an em dash),
+  /// not as a blank box that looks like the data failed to load — this
+  /// fills both the read-only view and the edit form from the same data.
+  function fillParkDetailFields(lot) {
+    $("apdTitle").textContent = lot.park_name || "—";
+    $("viewOwnerName").textContent = lot.owner_name || "—";
+    $("viewPhone").textContent = lot.phone || "—";
+    $("viewGovernorate").textContent = lot.governorate || "—";
+    $("viewEmail").textContent = lot.email || "—";
+    $("viewCapacity").textContent = lot.capacity != null ? String(lot.capacity) : "—";
+
+    $("apdParkName").value = lot.park_name || "";
+    $("apdOwnerName").value = lot.owner_name || "";
+    $("apdPhone").value = lot.phone || "";
+    $("apdGovernorate").value = lot.governorate || "";
+    $("apdEmail").value = lot.email || "";
+    $("apdCapacity").value = lot.capacity ?? "";
+  }
+
+  function showParkEditForm(open) {
+    $("apdEditForm").style.display = open ? "" : "none";
+    $("apdInfoView").style.display = open ? "none" : "";
+  }
+
+  $("apdEditBtn").addEventListener("click", () => showParkEditForm(true));
+  $("apdEditCancelBtn").addEventListener("click", () => showParkEditForm(false));
 
   function renderSubStatus(lot) {
     const el = $("apdSubStatus");
@@ -2165,10 +2208,11 @@
       if (!res.ok || !data.ok) throw new Error(data.error || "فشل حفظ التعديلات");
 
       lotsById[selectedParkOwnerId] = data.lot;
-      $("apdTitle").textContent = data.lot.park_name || "—";
+      fillParkDetailFields(data.lot);
       renderAdminPanel();
       msg.textContent = "تم الحفظ";
       msg.className = "form-msg show ok";
+      showParkEditForm(false);
     } catch (err) {
       msg.textContent = err.message;
       msg.className = "form-msg show error";
@@ -2180,7 +2224,7 @@
   $("apdResetPwBtn").addEventListener("click", async () => {
     if (!selectedParkOwnerId) return;
     if (!confirm("إعادة تعيين كلمة مرور هذا الموقف؟ كلمة المرور القديمة تتوقف فوراً.")) return;
-    const msg = $("apdEditMsg");
+    const msg = $("apdViewMsg");
     try {
       await ensureFreshSession();
       const res = await fetch(SUPABASE_URL + "/functions/v1/reset-park-password", {
@@ -2201,7 +2245,7 @@
 
   $("apdCopyLinkBtn").addEventListener("click", () => {
     navigator.clipboard?.writeText(location.origin + location.pathname);
-    const msg = $("apdEditMsg");
+    const msg = $("apdViewMsg");
     msg.textContent = "تم نسخ رابط اللوحة";
     msg.className = "form-msg show ok";
   });
