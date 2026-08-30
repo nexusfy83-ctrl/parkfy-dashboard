@@ -996,6 +996,93 @@
     </div>
   </section>
 
+  <!-- Super admin only — everything admin_parks_list/create/edit/detail
+       screens do in the app, available from the web too. Hidden via JS
+       (renderAdminPanel), same convention as #tariffPanel above. -->
+  <section class="panel" id="adminPanel" style="display:none">
+    <div class="panel-head">
+      <h2>إدارة المواقف <span class="count-chip" id="adminParkCount">0</span></h2>
+      <button class="secondary-btn" id="adminNewParkBtn" type="button">+ موقف جديد</button>
+    </div>
+
+    <div class="tariff-body">
+      <div id="adminParksListWrap"></div>
+
+      <!-- Create a new park account -->
+      <form class="tariff-form" id="adminNewParkForm" style="display:none">
+        <div class="field-row">
+          <label class="field"><span>اسم الموقف</span><input type="text" id="npParkName" required /></label>
+          <label class="field"><span>اسم صاحب الموقف</span><input type="text" id="npOwnerName" required /></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>رقم الهاتف</span><input type="tel" id="npPhone" /></label>
+          <label class="field"><span>المحافظة</span><input type="text" id="npGovernorate" /></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>البريد الإلكتروني (لتسجيل الدخول)</span><input type="email" id="npEmail" required /></label>
+          <label class="field"><span>السعة (عدد السيارات)</span><input type="number" min="0" id="npCapacity" /></label>
+        </div>
+        <div class="field-row">
+          <label class="field" style="flex:1 1 100%">
+            <span>كلمة المرور</span>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="npPassword" required style="flex:1" />
+              <button class="secondary-btn" id="npGenBtn" type="button">توليد</button>
+            </div>
+            <small>شارك هذي البيانات مع صاحب الموقف مباشرة بعد الإنشاء — ما تُحفظ ولا تظهر مرة ثانية.</small>
+          </label>
+        </div>
+        <div class="form-msg" id="npMsg"></div>
+        <div class="form-actions">
+          <button class="primary-btn" id="npCreateBtn" type="submit">إنشاء الحساب</button>
+          <button class="secondary-btn" id="npCancelBtn" type="button">إلغاء</button>
+        </div>
+      </form>
+
+      <!-- Selected park: stats, subscription, edit, password reset -->
+      <div id="adminParkDetail" style="display:none">
+        <h3 id="apdTitle" style="margin:18px 0 6px"></h3>
+        <div class="stats" id="apdStats" style="margin-bottom:16px">
+          <div class="stat-tile"><div class="label">سيارات داخل الموقف الآن</div><div class="value numeric"><span id="apdActive">—</span></div></div>
+          <div class="stat-tile"><div class="label">مبيعات اليوم</div><div class="value numeric"><span id="apdRevenue">—</span></div></div>
+          <div class="stat-tile"><div class="label">سيارات داخلة اليوم</div><div class="value numeric"><span id="apdEntries">—</span></div></div>
+        </div>
+
+        <div class="form-hint" id="apdSubStatus" style="margin-bottom:8px;font-weight:600"></div>
+        <div class="form-actions" style="flex-wrap:wrap">
+          <button class="secondary-btn" data-months="1" type="button">شهر</button>
+          <button class="secondary-btn" data-months="3" type="button">3 أشهر</button>
+          <button class="secondary-btn" data-months="6" type="button">6 أشهر</button>
+          <button class="secondary-btn" data-months="12" type="button">سنة</button>
+          <button class="secondary-btn" id="apdCancelSubBtn" type="button" style="color:var(--danger)">إلغاء الاشتراك</button>
+        </div>
+        <div class="form-msg" id="apdSubMsg"></div>
+
+        <form class="tariff-form" id="apdEditForm" style="margin-top:18px">
+          <div class="field-row">
+            <label class="field"><span>اسم الموقف</span><input type="text" id="apdParkName" required /></label>
+            <label class="field"><span>اسم صاحب الموقف</span><input type="text" id="apdOwnerName" required /></label>
+          </div>
+          <div class="field-row">
+            <label class="field"><span>رقم الهاتف</span><input type="tel" id="apdPhone" /></label>
+            <label class="field"><span>المحافظة</span><input type="text" id="apdGovernorate" /></label>
+          </div>
+          <div class="field-row">
+            <label class="field"><span>البريد الإلكتروني</span><input type="email" id="apdEmail" required /></label>
+            <label class="field"><span>السعة (عدد السيارات)</span><input type="number" min="0" id="apdCapacity" /></label>
+          </div>
+          <div class="form-msg" id="apdEditMsg"></div>
+          <div class="form-actions">
+            <button class="primary-btn" type="submit">حفظ التعديلات</button>
+            <button class="secondary-btn" id="apdResetPwBtn" type="button">إعادة تعيين كلمة المرور</button>
+            <button class="secondary-btn" id="apdCopyLinkBtn" type="button">نسخ رابط اللوحة</button>
+            <button class="secondary-btn" id="apdCloseBtn" type="button">إغلاق</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <div class="stats">
     <div class="stat-tile accent">
       <div class="label">
@@ -1440,6 +1527,7 @@
       renderZaincashMonthOptions();
       renderZaincashPanel();
       renderAccountLine();
+      renderAdminPanel();
     } catch (_) {
       // Non-fatal — the dashboard still works without park labels.
     }
@@ -1850,6 +1938,272 @@
       btn.disabled = false;
       btn.textContent = "حفظ";
     }
+  });
+
+  // ---- admin panel (super admin only) ------------------------------------
+  // Everything admin_parks_list/create/edit/detail do in the Flutter app,
+  // reusing the same Edge Functions — nothing new server-side, just a web
+  // front end for a super admin who is at a desk instead of holding a phone.
+
+  let selectedParkOwnerId = null;
+
+  function renderAdminPanel() {
+    const panel = $("adminPanel");
+    if (!isSuperAdmin) {
+      panel.style.display = "none";
+      return;
+    }
+    panel.style.display = "";
+
+    const parks = Object.values(lotsById).sort((a, b) =>
+      (a.park_name || "").localeCompare(b.park_name || "", "ar"));
+    $("adminParkCount").textContent = String(parks.length);
+
+    const wrap = $("adminParksListWrap");
+    if (parks.length === 0) {
+      wrap.innerHTML = '<p class="form-hint">لا توجد مواقف مسجّلة بعد.</p>';
+      return;
+    }
+
+    wrap.innerHTML = parks.map((lot) => {
+      const expiry = lot.subscription_expires_at ? new Date(lot.subscription_expires_at) : null;
+      const days = expiry ? Math.ceil((expiry - new Date()) / 86400000) : null;
+      const subText = days === null
+        ? "بدون اشتراك"
+        : days <= 0 ? "منتهي" : `${days} يوم متبقٍ`;
+      const subClass = days === null ? "" : days <= 0 ? "error" : days <= 5 ? "warn" : "ok";
+      return `
+        <div class="mode-card admin-park-row" data-owner="${escapeHtml(lot.owner_id)}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer">
+          <div>
+            <strong>${escapeHtml(lot.park_name || "—")}</strong>
+            <small style="display:block;color:var(--text-muted)">${escapeHtml(lot.owner_name || "")} — ${escapeHtml(lot.governorate || "")}</small>
+          </div>
+          <span class="form-msg show ${subClass}" style="margin:0">${subText}</span>
+        </div>`;
+    }).join("");
+
+    wrap.querySelectorAll(".admin-park-row").forEach((row) => {
+      row.addEventListener("click", () => openParkDetail(row.dataset.owner));
+    });
+  }
+
+  $("adminNewParkBtn").addEventListener("click", () => {
+    $("adminParkDetail").style.display = "none";
+    const form = $("adminNewParkForm");
+    form.style.display = form.style.display === "none" ? "" : "none";
+  });
+  $("npCancelBtn").addEventListener("click", () => { $("adminNewParkForm").style.display = "none"; });
+  $("npGenBtn").addEventListener("click", () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let out = "";
+    for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    $("npPassword").value = out;
+  });
+
+  $("adminNewParkForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("npMsg");
+    msg.className = "form-msg";
+    const body = {
+      parkName: $("npParkName").value.trim(),
+      ownerName: $("npOwnerName").value.trim(),
+      phone: $("npPhone").value.trim() || null,
+      governorate: $("npGovernorate").value.trim() || null,
+      email: $("npEmail").value.trim(),
+      password: $("npPassword").value,
+      capacity: $("npCapacity").value.trim() === "" ? null : Number($("npCapacity").value),
+    };
+    if (!body.parkName || !body.ownerName || !body.email || !body.password) {
+      msg.textContent = "أكمل الحقول المطلوبة";
+      msg.className = "form-msg show error";
+      return;
+    }
+
+    const btn = $("npCreateBtn");
+    btn.disabled = true;
+    btn.textContent = "جارِ الإنشاء...";
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/create-park-account", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل إنشاء الحساب");
+
+      msg.textContent = `تم الإنشاء — الإيميل: ${data.email} — شارك بيانات الدخول مع صاحب الموقف الآن.`;
+      msg.className = "form-msg show ok";
+      $("adminNewParkForm").reset();
+      await loadLots();
+      renderAdminPanel();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg show error";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "إنشاء الحساب";
+    }
+  });
+
+  async function openParkDetail(ownerId) {
+    selectedParkOwnerId = ownerId;
+    $("adminNewParkForm").style.display = "none";
+    const lot = lotsById[ownerId];
+    if (!lot) return;
+
+    $("adminParkDetail").style.display = "";
+    $("apdTitle").textContent = lot.park_name || "—";
+    $("apdParkName").value = lot.park_name || "";
+    $("apdOwnerName").value = lot.owner_name || "";
+    $("apdPhone").value = lot.phone || "";
+    $("apdGovernorate").value = lot.governorate || "";
+    $("apdEmail").value = lot.email || "";
+    $("apdCapacity").value = lot.capacity ?? "";
+    $("apdEditMsg").className = "form-msg";
+    $("apdSubMsg").className = "form-msg";
+    renderSubStatus(lot);
+
+    $("apdActive").textContent = "…";
+    $("apdRevenue").textContent = "…";
+    $("apdEntries").textContent = "…";
+    try {
+      await ensureFreshSession();
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      const [active, entries, closed] = await Promise.all([
+        fetchJSON(`/rest/v1/parking_sessions?owner_id=eq.${ownerId}&exit_time=is.null&select=id`),
+        fetchJSON(`/rest/v1/parking_sessions?owner_id=eq.${ownerId}&entry_time=gte.${startOfDay.toISOString()}&entry_time=lte.${endOfDay.toISOString()}&select=id`),
+        fetchJSON(`/rest/v1/parking_sessions?owner_id=eq.${ownerId}&exit_time=gte.${startOfDay.toISOString()}&exit_time=lte.${endOfDay.toISOString()}&select=amount`),
+      ]);
+      $("apdActive").textContent = numberFmt.format(active.length);
+      $("apdEntries").textContent = numberFmt.format(entries.length);
+      const revenue = closed.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+      $("apdRevenue").textContent = numberFmt.format(revenue);
+    } catch (_) {
+      $("apdActive").textContent = "—";
+      $("apdRevenue").textContent = "—";
+      $("apdEntries").textContent = "—";
+    }
+  }
+
+  function renderSubStatus(lot) {
+    const el = $("apdSubStatus");
+    const expiry = lot.subscription_expires_at ? new Date(lot.subscription_expires_at) : null;
+    if (!expiry) { el.textContent = "بدون اشتراك حالياً"; return; }
+    const days = Math.ceil((expiry - new Date()) / 86400000);
+    const dateText = new Intl.DateTimeFormat("ar-IQ-u-nu-latn",
+      { day: "2-digit", month: "2-digit", year: "numeric" }).format(expiry);
+    el.textContent = days <= 0
+      ? `الاشتراك منتهي منذ ${dateText}`
+      : `الاشتراك فعّال — يتبقى ${days} يوم (حتى ${dateText})`;
+  }
+
+  $("apdCloseBtn").addEventListener("click", () => {
+    $("adminParkDetail").style.display = "none";
+    selectedParkOwnerId = null;
+  });
+
+  document.querySelectorAll("#adminParkDetail [data-months]").forEach((btn) => {
+    btn.addEventListener("click", () => setParkSubscription(Number(btn.dataset.months)));
+  });
+  $("apdCancelSubBtn").addEventListener("click", () => setParkSubscription(null, true));
+
+  async function setParkSubscription(months, cancel = false) {
+    if (!selectedParkOwnerId) return;
+    const msg = $("apdSubMsg");
+    msg.className = "form-msg";
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/set-park-subscription", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(cancel
+          ? { ownerId: selectedParkOwnerId, mode: "cancel" }
+          : { ownerId: selectedParkOwnerId, months }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل تحديث الاشتراك");
+
+      lotsById[selectedParkOwnerId] = data.lot;
+      renderSubStatus(data.lot);
+      renderAdminPanel();
+      msg.textContent = cancel ? "تم إلغاء الاشتراك" : "تم تحديث الاشتراك";
+      msg.className = "form-msg show ok";
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg show error";
+    }
+  }
+
+  $("apdEditForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!selectedParkOwnerId) return;
+    const msg = $("apdEditMsg");
+    msg.className = "form-msg";
+    const body = {
+      ownerId: selectedParkOwnerId,
+      parkName: $("apdParkName").value.trim(),
+      ownerName: $("apdOwnerName").value.trim(),
+      phone: $("apdPhone").value.trim() || null,
+      governorate: $("apdGovernorate").value.trim() || null,
+      email: $("apdEmail").value.trim(),
+      capacity: $("apdCapacity").value.trim() === "" ? null : Number($("apdCapacity").value),
+    };
+    const btn = e.submitter;
+    btn.disabled = true;
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/update-park-account", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل حفظ التعديلات");
+
+      lotsById[selectedParkOwnerId] = data.lot;
+      $("apdTitle").textContent = data.lot.park_name || "—";
+      renderAdminPanel();
+      msg.textContent = "تم الحفظ";
+      msg.className = "form-msg show ok";
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg show error";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("apdResetPwBtn").addEventListener("click", async () => {
+    if (!selectedParkOwnerId) return;
+    if (!confirm("إعادة تعيين كلمة مرور هذا الموقف؟ كلمة المرور القديمة تتوقف فوراً.")) return;
+    const msg = $("apdEditMsg");
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/reset-park-password", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerId: selectedParkOwnerId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل إعادة تعيين كلمة المرور");
+
+      msg.textContent = `كلمة المرور الجديدة: ${data.newPassword} — انسخها الآن، ما تظهر مرة ثانية.`;
+      msg.className = "form-msg show ok";
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg show error";
+    }
+  });
+
+  $("apdCopyLinkBtn").addEventListener("click", () => {
+    navigator.clipboard?.writeText(location.origin + location.pathname);
+    const msg = $("apdEditMsg");
+    msg.textContent = "تم نسخ رابط اللوحة";
+    msg.className = "form-msg show ok";
   });
 
   async function loadAll() {
