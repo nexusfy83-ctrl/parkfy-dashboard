@@ -507,6 +507,47 @@
   .admin-col { display: none; }
   body.admin-mode .admin-col { display: table-cell; }
 
+  /* ---- Parkfy brand + subscription countdown card ---- */
+  .parkfy-brand-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    margin-bottom: 18px;
+    border-radius: 14px;
+    /* Bright gold with a lighter diagonal band for the "glossy" sheen. */
+    background:
+      linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.55) 50%, transparent 60%),
+      linear-gradient(135deg, #FFD54A 0%, #FFC107 45%, #F5A623 100%);
+    box-shadow: 0 4px 16px rgba(196, 148, 8, 0.35);
+  }
+  .parkfy-brand-name {
+    font-family: "Barlow Condensed", sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.5px;
+    color: #4A3200;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .parkfy-brand-sub {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #5C3F00;
+  }
+  .parkfy-brand-card.dead {
+    background:
+      linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%),
+      linear-gradient(135deg, #E0665A 0%, #C4392B 100%);
+    box-shadow: 0 4px 16px rgba(180, 40, 25, 0.35);
+  }
+  .parkfy-brand-card.dead .parkfy-brand-name,
+  .parkfy-brand-card.dead .parkfy-brand-sub {
+    color: #fff;
+    text-shadow: none;
+  }
+
   /* ---- subscription banner ---- */
   .sub-banner {
     display: none;
@@ -793,6 +834,14 @@
 </div>
 
 <div class="page hidden" id="dashboardView">
+
+  <!-- Brand + subscription countdown, always visible — not just a warning
+       near expiry like #subBanner below. An owner should be able to glance
+       at the top of the page any day and see exactly where they stand. -->
+  <div class="parkfy-brand-card" id="parkfyBrandCard">
+    <span class="parkfy-brand-name">Parkfy</span>
+    <span class="parkfy-brand-sub" id="parkfyBrandSub">جارِ التحميل...</span>
+  </div>
 
   <header class="top">
     <div class="brand">
@@ -1243,6 +1292,7 @@
   let lotsById = {};
   let isSuperAdmin = false;
   let zaincashEnabled = false;
+  let zaincashPricePerMonth = 0;
 
   /// The signed-in park's own row, or null for a super admin viewing all.
   function ownLot() {
@@ -1369,14 +1419,20 @@
       const [lots, adminRows, settingsRows] = await Promise.all([
         fetchJSON("/rest/v1/parking_lots?select=owner_id,park_name,owner_name,governorate,capacity,subscription_expires_at,currency,pricing_mode,flat_rate,first_hour_rate,after_first_hour_rate,hourly_rate"),
         uid ? fetchJSON(`/rest/v1/super_admins?user_id=eq.${uid}&select=user_id`) : Promise.resolve([]),
-        fetchJSON("/rest/v1/platform_settings?key=eq.zaincash_enabled&select=value"),
+        fetchJSON("/rest/v1/platform_settings?key=in.(zaincash_enabled,subscription_price_per_month_iqd)&select=key,value"),
       ]);
       lotsById = {};
       lots.forEach((l) => { lotsById[l.owner_id] = l; });
       isSuperAdmin = adminRows.length > 0;
       document.body.classList.toggle("admin-mode", isSuperAdmin);
-      zaincashEnabled = settingsRows.length > 0 && settingsRows[0].value === "true";
+
+      const settingsByKey = {};
+      settingsRows.forEach((r) => { settingsByKey[r.key] = r.value; });
+      zaincashEnabled = settingsByKey.zaincash_enabled === "true";
+      zaincashPricePerMonth = Number(settingsByKey.subscription_price_per_month_iqd || "0");
+
       renderZaincashAdminToggle();
+      renderZaincashMonthOptions();
       renderZaincashPanel();
       renderAccountLine();
     } catch (_) {
@@ -1432,6 +1488,21 @@
     } else {
       el.textContent = email || "متابعة السيارات والمبيعات لحظياً";
     }
+  }
+
+  /// Labels each plan with what it actually costs — "3 أشهر" alone leaves
+  /// the owner to do the multiplication themselves before deciding whether
+  /// to pay.
+  function renderZaincashMonthOptions() {
+    const select = $("zaincashMonths");
+    const labels = { 1: "شهر واحد", 3: "3 أشهر", 6: "6 أشهر", 12: "سنة" };
+    Array.from(select.options).forEach((opt) => {
+      const months = Number(opt.value);
+      const label = labels[months] || `${months} أشهر`;
+      opt.textContent = zaincashPricePerMonth > 0
+        ? `${label} — ${numberFmt.format(zaincashPricePerMonth * months)} ${currency()}`
+        : label;
+    });
   }
 
   /// Shown only to a park owner (not the super admin, who has no single
@@ -1616,6 +1687,44 @@
     }
   }
 
+  /// The gold "Parkfy" card at the top of every page — unlike #subBanner
+  /// (which only appears as a warning near expiry), this always shows
+  /// where the owner stands, every day, not just when something is wrong.
+  function renderParkfyBrandCard() {
+    const card = $("parkfyBrandCard");
+    const sub = $("parkfyBrandSub");
+
+    if (isSuperAdmin) {
+      card.classList.remove("dead");
+      sub.textContent = "سوبر أدمن";
+      return;
+    }
+
+    const lot = ownLot();
+    const expiry = lot && lot.subscription_expires_at
+      ? new Date(lot.subscription_expires_at)
+      : null;
+
+    if (!expiry) {
+      card.classList.remove("dead");
+      sub.textContent = "نظام إدارة المواقف";
+      return;
+    }
+
+    const days = Math.ceil((expiry - new Date()) / 86400000);
+    const dateText = new Intl.DateTimeFormat("ar-IQ-u-nu-latn",
+      { day: "2-digit", month: "2-digit", year: "numeric" }).format(expiry);
+
+    if (days <= 0) {
+      card.classList.add("dead");
+      sub.textContent = `الاشتراك منتهي منذ ${dateText}`;
+    } else {
+      card.classList.remove("dead");
+      const dayWord = days === 1 ? "يوم واحد" : `${days} يوم`;
+      sub.textContent = `الاشتراك فعّال — يتبقى ${dayWord} (حتى ${dateText})`;
+    }
+  }
+
 
   // ---- tariff editor ----------------------------------------------------
 
@@ -1770,6 +1879,7 @@
       $("revenueUnit").textContent = currency();
       renderTariff();
       renderSubscription(ownLot());
+      renderParkfyBrandCard();
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
       setLive(true);
