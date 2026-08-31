@@ -2223,14 +2223,28 @@
 
   $("apdResetPwBtn").addEventListener("click", async () => {
     if (!selectedParkOwnerId) return;
-    if (!confirm("إعادة تعيين كلمة مرور هذا الموقف؟ كلمة المرور القديمة تتوقف فوراً.")) return;
+    const entered = prompt(
+      "اكتب كلمة المرور الجديدة (6 أحرف على الأقل).\n" +
+      "اتركها فارغة لتوليد كلمة مرور عشوائية.\n\n" +
+      "كلمة المرور القديمة تتوقف فوراً."
+    );
+    if (entered === null) return; // cancelled
+    const newPassword = entered.trim();
+    if (newPassword && newPassword.length < 6) {
+      const m = $("apdViewMsg");
+      m.textContent = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
+      m.className = "form-msg show error";
+      return;
+    }
     const msg = $("apdViewMsg");
     try {
       await ensureFreshSession();
+      const body = { ownerId: selectedParkOwnerId };
+      if (newPassword) body.newPassword = newPassword;
       const res = await fetch(SUPABASE_URL + "/functions/v1/reset-park-password", {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerId: selectedParkOwnerId }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || "فشل إعادة تعيين كلمة المرور");
