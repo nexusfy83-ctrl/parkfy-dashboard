@@ -2333,6 +2333,28 @@
     if (currentSession && document.visibilityState === "visible") loadAll();
   }, 5000);
   tickHandle = setInterval(tickDurations, 1000);
+
+  // Resume a saved session on load, so opening or refreshing the dashboard
+  // does not ask the owner to sign in again every time. The session is
+  // already kept in localStorage; this just acts on it at startup instead
+  // of waiting for a manual login. A stale access token is renewed up
+  // front; only a session the server refuses to refresh falls back to the
+  // login screen (fetchJSON's own 401 handling is the safety net below).
+  (async function resumeSession() {
+    if (!currentSession) {
+      showLogin();
+      return;
+    }
+    const expiry = sessionExpiresAt();
+    if (expiry && expiry - Date.now() < RENEW_MARGIN_SECONDS * 1000) {
+      const ok = await refreshSession();
+      if (!ok && navigator.onLine !== false && expiry < Date.now()) {
+        signOut();
+        return;
+      }
+    }
+    showDashboard();
+  })();
 </script>
 </body>
 </html>
