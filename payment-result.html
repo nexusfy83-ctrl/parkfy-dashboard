@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Parkfy</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+    background: #0A0E14;
+    color: #E8EDF4;
+  }
+  .card {
+    width: 100%;
+    max-width: 380px;
+    background: #121923;
+    border: 1px solid #26313F;
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  .brand {
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: 0.5px;
+    margin-bottom: 18px;
+  }
+  .brand.ok {
+    background: linear-gradient(135deg, #FFC107, #F5A623);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .brand.error {
+    background: linear-gradient(135deg, #E0665A, #C4392B);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .icon { font-size: 44px; margin-bottom: 10px; }
+  h2 { margin: 0 0 8px; font-size: 19px; color: #fff; }
+  p { margin: 0; font-size: 14px; color: #8C9BB0; line-height: 1.6; }
+  a.btn {
+    display: inline-block;
+    margin-top: 22px;
+    padding: 11px 26px;
+    border-radius: 10px;
+    color: #1a1200;
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  a.btn.ok { background: linear-gradient(135deg, #FFC107, #F5A623); }
+  a.btn.error { background: linear-gradient(135deg, #E0665A, #C4392B); color: #fff; }
+  .redirect-note { margin-top: 14px; font-size: 12px; color: #57687C; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand" id="brand">Parkfy</div>
+    <div class="icon" id="icon">⏳</div>
+    <h2 id="title">جارٍ التحميل...</h2>
+    <p id="message"></p>
+    <a class="btn" id="btn" href="./">العودة للوحة التحكم الآن</a>
+    <p class="redirect-note" id="countdown">سيتم تحويلك تلقائياً خلال 4 ثوانٍ...</p>
+  </div>
+  <script>
+    // Everything about the outcome (which server-side zaincash-callback
+    // already fully decided — payment verified via ZainCash's own inquiry
+    // API, subscription extended in the database) arrives here as plain
+    // query params. This page is purely a display — a Supabase Edge
+    // Function on the free plan cannot serve real HTML itself, so it
+    // redirects here instead of rendering the result directly.
+    const params = new URLSearchParams(location.search);
+    const tone = params.get("tone") === "ok" ? "ok" : "error";
+    const title = params.get("title") || (tone === "ok" ? "تم بنجاح" : "حدث خطأ");
+    const message = params.get("message") || "";
+    const icon = params.get("icon") || (tone === "ok" ? "✅" : "✕");
+
+    document.title = "Parkfy";
+    document.getElementById("brand").className = "brand " + tone;
+    document.getElementById("icon").textContent = icon;
+    document.getElementById("title").textContent = title;
+    document.getElementById("message").textContent = message;
+    document.getElementById("btn").className = "btn " + tone;
+
+    let n = 4;
+    const el = document.getElementById("countdown");
+    const timer = setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        clearInterval(timer);
+        location.href = "./";
+        return;
+      }
+      el.textContent = "سيتم تحويلك تلقائياً خلال " + n + " ثوانٍ...";
+    }, 1000);
+  </script>
+</body>
+</html>
