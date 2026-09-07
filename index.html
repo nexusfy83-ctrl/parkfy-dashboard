@@ -1142,7 +1142,10 @@
   <section class="panel">
     <div class="panel-head">
       <h2>السيارات الموجودة حالياً</h2>
-      <span class="count-chip numeric" id="activeCount">0</span>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="secondary-btn danger-btn" id="clearActiveBtn" type="button" style="display:none">إخراج الكل (تصفير)</button>
+        <span class="count-chip numeric" id="activeCount">0</span>
+      </div>
     </div>
     <div class="table-scroll">
       <table>
@@ -1451,6 +1454,11 @@
     const empty = $("activeEmpty");
     $("activeCount").textContent = numberFmt.format(activeSessions.length);
     $("statActive").textContent = numberFmt.format(activeSessions.length);
+
+    // Owners only, and only when something is actually parked — a manual
+    // correction for cars that left without an exit being registered.
+    $("clearActiveBtn").style.display =
+      (!isSuperAdmin && activeSessions.length > 0) ? "" : "none";
 
     if (activeSessions.length === 0) {
       body.innerHTML = "";
@@ -2324,6 +2332,44 @@
   });
 
   $("refreshBtn").addEventListener("click", loadAll);
+
+  // Bulk-close every currently-open session for this owner. For the common
+  // case where cars physically left but the worker (or a crash) never
+  // registered the exit, so the "cars inside now" count keeps climbing.
+  // Closes at amount 0 — these are corrections, not sales.
+  $("clearActiveBtn").addEventListener("click", async () => {
+    const uid = currentSession && currentSession.user ? currentSession.user.id : null;
+    if (!uid || activeSessions.length === 0) return;
+    const n = activeSessions.length;
+    if (!confirm(
+      `سيتم تسجيل خروج كل السيارات الموجودة حالياً (${n}) بمبلغ صفر.\n\n` +
+      "استخدم هذا فقط لتصحيح سيارات غادرت فعلياً ولم يُسجَّل خروجها. لا يمكن التراجع."
+    )) return;
+
+    const btn = $("clearActiveBtn");
+    btn.disabled = true;
+    try {
+      await ensureFreshSession();
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/parking_sessions?owner_id=eq.${uid}&exit_time=is.null`,
+        {
+          method: "PATCH",
+          headers: {
+            ...authHeaders(),
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({ exit_time: new Date().toISOString(), amount: 0 }),
+        },
+      );
+      if (!res.ok) throw new Error("فشل التصفير (" + res.status + ")");
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   // 5s to match the app's own refresh cadence — a car checked in on a
   // worker's phone should show here within a few seconds, not up to 20.
