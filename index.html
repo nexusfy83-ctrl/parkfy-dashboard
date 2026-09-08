@@ -1074,6 +1074,7 @@
           <div class="form-actions" style="margin-top:12px">
             <button class="secondary-btn" id="apdEditBtn" type="button">تعديل</button>
             <button class="secondary-btn" id="apdResetPwBtn" type="button">إعادة تعيين كلمة المرور</button>
+            <button class="secondary-btn danger-btn" id="apdResetDevicesBtn" type="button">تصفير الأجهزة</button>
             <button class="secondary-btn" id="apdCopyLinkBtn" type="button">نسخ رابط اللوحة</button>
             <button class="secondary-btn danger-btn" id="apdCloseBtn" type="button">إغلاق</button>
           </div>
@@ -2262,6 +2263,34 @@
     } catch (err) {
       msg.textContent = err.message;
       msg.className = "form-msg show error";
+    }
+  });
+
+  $("apdResetDevicesBtn").addEventListener("click", async () => {
+    if (!selectedParkOwnerId) return;
+    if (!confirm(
+      "سيتم حذف كل الأجهزة المسجّلة لهذا الحساب.\n\n" +
+      "كل جهاز فعلي يعيد ربط نفسه تلقائياً عند فتح التطبيق. متابعة؟"
+    )) return;
+    const msg = $("apdViewMsg");
+    const btn = $("apdResetDevicesBtn");
+    btn.disabled = true;
+    try {
+      await ensureFreshSession();
+      const res = await fetch(SUPABASE_URL + "/functions/v1/reset-park-devices", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerId: selectedParkOwnerId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "فشل تصفير الأجهزة");
+      msg.textContent = `تم حذف ${data.removed} جهاز. ستُربط الأجهزة الفعلية من جديد عند فتح التطبيق.`;
+      msg.className = "form-msg show ok";
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.className = "form-msg show error";
+    } finally {
+      btn.disabled = false;
     }
   });
 
