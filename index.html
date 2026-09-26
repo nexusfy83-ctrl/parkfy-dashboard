@@ -683,6 +683,33 @@
   .tariff-card.muted { background: linear-gradient(135deg, #4B5563, #6B7280); color: #fff; }
   .tariff-card .tariff-hint { font-size: 12px; font-weight: 500; opacity: 0.85; white-space: nowrap; }
 
+  /* Monthly subscribers */
+  .subs-form-title { font-weight: 600; margin-bottom: 10px; }
+  .subs-section-title { font-weight: 600; font-size: 14px; color: var(--text-muted); margin: 16px 0 10px; }
+  .subs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .sub-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-inline-start: 5px solid var(--success);
+  }
+  .sub-card.soon { border-inline-start-color: var(--warning); }
+  .sub-card.expired { border-inline-start-color: var(--danger); opacity: 0.85; }
+  .sub-card.pending { border-inline-start-color: var(--accent); background: var(--accent-soft); }
+  .sub-card .sub-plate { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  .sub-card .sub-meta { font-size: 13px; color: var(--text-muted); }
+  .sub-card .sub-dates { font-size: 13px; }
+  .sub-card .sub-badge { align-self: flex-start; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+  .sub-badge.ok { background: var(--success-soft); color: var(--success); }
+  .sub-badge.soon { background: var(--warning-soft); color: var(--warning); }
+  .sub-badge.expired { background: var(--danger-soft); color: var(--danger); }
+  .sub-badge.pending { background: var(--surface); color: var(--accent); }
+  .sub-card .sub-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
   button.secondary-btn {
     background: var(--surface-alt);
     color: var(--text);
@@ -1016,6 +1043,44 @@
           <button class="secondary-btn" id="tariffCancelBtn" type="button">إلغاء</button>
         </div>
       </form>
+    </div>
+  </section>
+
+  <!-- Monthly subscribers — owner only. Workers file requests from the app;
+       the owner activates them here with a from/to date range. -->
+  <section class="panel" id="subsPanel" style="display:none">
+    <div class="panel-head">
+      <h2>الاشتراكات الشهرية</h2>
+      <button class="secondary-btn" id="subsAddBtn" type="button">+ إضافة مشترك</button>
+    </div>
+    <div class="tariff-body">
+      <form class="tariff-form" id="subsForm" style="display:none;margin-top:0">
+        <div class="subs-form-title" id="subsFormTitle">إضافة مشترك</div>
+        <div class="field-row">
+          <label class="field"><span>رقم اللوحة</span><input id="sfPlate" inputmode="numeric" required /></label>
+          <label class="field"><span>الاسم</span><input id="sfName" /></label>
+          <label class="field"><span>الهاتف</span><input id="sfPhone" type="tel" dir="ltr" /></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>من تاريخ</span><input id="sfFrom" type="date" required /></label>
+          <label class="field"><span>إلى تاريخ</span><input id="sfTo" type="date" required /></label>
+          <label class="field"><span>مبلغ الاشتراك</span><input id="sfAmount" type="number" min="0" step="any" inputmode="decimal" /></label>
+        </div>
+        <div class="form-msg" id="subsFormMsg"></div>
+        <div class="form-actions">
+          <button class="primary-btn" id="subsSaveBtn" type="submit">تفعيل الاشتراك</button>
+          <button class="secondary-btn" id="subsCancelBtn" type="button">إلغاء</button>
+        </div>
+      </form>
+
+      <div id="subsRequestsWrap" style="display:none">
+        <div class="subs-section-title">طلبات اشتراك جديدة</div>
+        <div class="subs-grid" id="subsRequests"></div>
+      </div>
+
+      <div class="subs-section-title" id="subsActiveTitle">المشتركون</div>
+      <div class="subs-grid" id="subsList"></div>
+      <div class="empty-state" id="subsEmpty" style="display:none">لا يوجد مشتركون بعد</div>
     </div>
   </section>
 
@@ -2324,6 +2389,247 @@
     msg.className = "form-msg show ok";
   });
 
+  // --- Monthly subscribers ---------------------------------------------
+  // Workers request from the app (status 'pending'); the owner activates
+  // here with a from/to date range. Dates are plain YYYY-MM-DD strings end to
+  // end — a pass covers whole calendar days and must not drift by timezone.
+
+  let subscribers = [];
+  let subsLastJson = "";
+  let subsEditId = null;
+
+  const subsDateFmt = new Intl.DateTimeFormat("ar-IQ-u-nu-latn", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  function toDateInput(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function parseDateOnly(s) {
+    const [y, m, d] = String(s).split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function todayDate() { return parseDateOnly(toDateInput(new Date())); }
+  /// One calendar month, inclusive: 1 Oct → 31 Oct.
+  function monthRangeEnd(from) {
+    const x = new Date(from);
+    x.setMonth(x.getMonth() + 1);
+    x.setDate(x.getDate() - 1);
+    return x;
+  }
+  /// Same normalisation the app applies, so a plate typed here matches the
+  /// one the camera reads: Arabic-Indic/Persian digits → Latin, upper case,
+  /// single spaces.
+  function normalisePlate(p) {
+    const ar = "٠١٢٣٤٥٦٧٨٩", fa = "۰۱۲۳۴۵۶۷۸۹";
+    return String(p)
+      .replace(/[٠-٩۰-۹]/g, (c) => String(ar.indexOf(c) >= 0 ? ar.indexOf(c) : fa.indexOf(c)))
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  async function restWrite(method, path, body) {
+    await ensureFreshSession();
+    const send = () => fetch(SUPABASE_URL + path, {
+      method,
+      headers: { ...authHeaders(), "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    let res = await send();
+    if (res.status === 401 && await refreshSession()) res = await send();
+    if (!res.ok) {
+      let detail = "";
+      try { detail = (await res.json()).message || ""; } catch {}
+      throw new Error("فشل الحفظ (" + res.status + ") " + detail);
+    }
+  }
+
+  function subState(s) {
+    if (s.status === "pending") return "pending";
+    const today = todayDate();
+    const end = parseDateOnly(s.end_date);
+    if (end < today) return "expired";
+    const daysLeft = Math.round((end - today) / 86400000);
+    return daysLeft <= 5 ? "soon" : "ok";
+  }
+
+  async function loadSubscribers() {
+    const lot = ownLot();
+    const uid = currentSession && currentSession.user ? currentSession.user.id : null;
+    const panel = $("subsPanel");
+    if (!lot || isSuperAdmin || !uid) { panel.style.display = "none"; return; }
+    panel.style.display = "";
+
+    const rows = await fetchJSON(
+      `/rest/v1/parking_subscribers?owner_id=eq.${uid}&status=in.(pending,active)&order=requested_at.desc`
+    );
+    const json = JSON.stringify(rows);
+    if (json === subsLastJson) return; // nothing changed — don't redraw under the owner's finger
+    subsLastJson = json;
+    subscribers = rows;
+    renderSubscribers();
+  }
+
+  function subCard(s) {
+    const state = subState(s);
+    const badge = {
+      pending: ["pending", "طلب جديد"],
+      ok: ["ok", "فعّال"],
+      soon: ["soon", "ينتهي قريباً"],
+      expired: ["expired", "منتهي"],
+    }[state];
+    const meta = [
+      s.customer_name ? escapeHtml(s.customer_name) : "",
+      s.phone ? `<span dir="ltr">${escapeHtml(s.phone)}</span>` : "",
+    ].filter(Boolean).join(" · ");
+    const dates = s.status === "pending"
+      ? `طُلب في ${dateTimeFmt.format(new Date(s.requested_at))}`
+      : `من <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.start_date))}</strong>
+         إلى <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.end_date))}</strong>`;
+    const amount = s.status !== "pending" && s.amount != null
+      ? `<div class="sub-meta">المبلغ: <span class="numeric">${numberFmt.format(Number(s.amount))}</span> ${escapeHtml(currency())}</div>`
+      : "";
+    const actions = s.status === "pending"
+      ? `<button class="primary-btn" data-action="activate" data-id="${s.id}" type="button">تفعيل</button>
+         <button class="secondary-btn danger-btn" data-action="reject" data-id="${s.id}" type="button">رفض</button>`
+      : `<button class="secondary-btn" data-action="renew" data-id="${s.id}" type="button">تجديد</button>
+         <button class="secondary-btn danger-btn" data-action="delete" data-id="${s.id}" type="button">حذف</button>`;
+
+    return `<div class="sub-card ${state === "ok" ? "" : state}">
+      <span class="sub-badge ${badge[0]}">${badge[1]}</span>
+      <div class="sub-plate numeric">${escapeHtml(s.plate_number)}</div>
+      ${meta ? `<div class="sub-meta">${meta}</div>` : ""}
+      <div class="sub-dates">${dates}</div>
+      ${amount}
+      <div class="sub-actions">${actions}</div>
+    </div>`;
+  }
+
+  function renderSubscribers() {
+    const pending = subscribers.filter((s) => s.status === "pending");
+    const active = subscribers
+      .filter((s) => s.status === "active" && s.start_date && s.end_date)
+      .sort((a, b) => a.end_date.localeCompare(b.end_date));
+
+    $("subsRequestsWrap").style.display = pending.length ? "" : "none";
+    $("subsRequests").innerHTML = pending.map(subCard).join("");
+    $("subsList").innerHTML = active.map(subCard).join("");
+    $("subsActiveTitle").textContent = `المشتركون (${active.length})`;
+    $("subsEmpty").style.display = active.length ? "none" : "";
+  }
+
+  function openSubsForm(sub, mode) {
+    subsEditId = sub ? sub.id : null;
+    const today = todayDate();
+    let from = today;
+    if (mode === "renew" && sub.end_date) {
+      const dayAfter = parseDateOnly(sub.end_date);
+      dayAfter.setDate(dayAfter.getDate() + 1);
+      if (dayAfter > today) from = dayAfter; // renew early without losing days
+    }
+    $("subsFormTitle").textContent =
+      mode === "renew" ? "تجديد الاشتراك" : mode === "activate" ? "تفعيل طلب الاشتراك" : "إضافة مشترك";
+    $("sfPlate").value = sub ? sub.plate_number : "";
+    $("sfName").value = sub && sub.customer_name ? sub.customer_name : "";
+    $("sfPhone").value = sub && sub.phone ? sub.phone : "";
+    $("sfFrom").value = toDateInput(from);
+    $("sfTo").value = toDateInput(monthRangeEnd(from));
+    $("sfAmount").value = sub && sub.amount != null ? sub.amount : "";
+    $("subsFormMsg").className = "form-msg";
+    $("subsForm").style.display = "";
+    $("subsForm").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function closeSubsForm() {
+    $("subsForm").style.display = "none";
+    subsEditId = null;
+  }
+
+  // Moving the start date keeps the range one month long by default; the
+  // owner can still set any end date by hand afterwards.
+  $("sfFrom").addEventListener("change", () => {
+    if ($("sfFrom").value) $("sfTo").value = toDateInput(monthRangeEnd(parseDateOnly($("sfFrom").value)));
+  });
+
+  $("subsAddBtn").addEventListener("click", () => openSubsForm(null, "add"));
+  $("subsCancelBtn").addEventListener("click", closeSubsForm);
+
+  $("subsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("subsFormMsg");
+    const plate = normalisePlate($("sfPlate").value);
+    const from = $("sfFrom").value;
+    const to = $("sfTo").value;
+    const amountRaw = $("sfAmount").value.trim();
+
+    const fail = (t) => { msg.textContent = t; msg.className = "form-msg show error"; };
+    if (!plate) return fail("أدخل رقم اللوحة");
+    if (!from || !to) return fail("اختر تاريخ البداية والنهاية");
+    if (to < from) return fail("تاريخ النهاية قبل تاريخ البداية");
+    if (amountRaw !== "" && !(Number(amountRaw) >= 0)) return fail("المبلغ غير صحيح");
+
+    const body = {
+      plate_number: plate,
+      customer_name: $("sfName").value.trim() || null,
+      phone: $("sfPhone").value.trim() || null,
+      start_date: from,
+      end_date: to,
+      amount: amountRaw === "" ? null : Number(amountRaw),
+      status: "active",
+      activated_at: new Date().toISOString(),
+    };
+
+    const btn = $("subsSaveBtn");
+    btn.disabled = true;
+    try {
+      if (subsEditId) {
+        await restWrite("PATCH", `/rest/v1/parking_subscribers?id=eq.${subsEditId}`, body);
+      } else {
+        body.owner_id = currentSession.user.id;
+        await restWrite("POST", "/rest/v1/parking_subscribers", body);
+      }
+      closeSubsForm();
+      subsLastJson = "";
+      await loadSubscribers();
+    } catch (err) {
+      fail(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  async function onSubAction(e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const sub = subscribers.find((s) => s.id === btn.dataset.id);
+    if (!sub) return;
+    const action = btn.dataset.action;
+
+    if (action === "activate" || action === "renew") {
+      openSubsForm(sub, action);
+      return;
+    }
+    const question = action === "reject"
+      ? `رفض طلب اشتراك اللوحة ${sub.plate_number}؟`
+      : `حذف اشتراك اللوحة ${sub.plate_number}؟ ستُعامل كزائر عادي بعدها.`;
+    if (!confirm(question)) return;
+
+    btn.disabled = true;
+    try {
+      if (action === "reject") {
+        await restWrite("PATCH", `/rest/v1/parking_subscribers?id=eq.${sub.id}`, { status: "rejected" });
+      } else {
+        await restWrite("DELETE", `/rest/v1/parking_subscribers?id=eq.${sub.id}`);
+      }
+      subsLastJson = "";
+      await loadSubscribers();
+    } catch (err) {
+      alert(err.message);
+      btn.disabled = false;
+    }
+  }
+  $("subsRequests").addEventListener("click", onSubAction);
+  $("subsList").addEventListener("click", onSubAction);
+
   async function loadAll() {
     const btn = $("refreshBtn");
     btn.classList.add("spinning");
@@ -2357,6 +2663,9 @@
       renderTariff();
       renderSubscription(ownLot());
       renderParkfyBrandCard();
+      // Separate from the batch above: a missing subscribers table (SQL not
+      // run yet) must not take the whole dashboard down with it.
+      loadSubscribers().catch(() => { $("subsPanel").style.display = "none"; });
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
       setLive(true);
