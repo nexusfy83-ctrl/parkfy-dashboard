@@ -663,6 +663,25 @@
     padding: 11px 14px;
   }
   .tariff-line.muted { color: var(--text-muted); background: var(--surface-alt); }
+  /* The tariff summary doubles as the edit button: a blue card you tap. */
+  .tariff-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: linear-gradient(135deg, #1E4FD8, #3B7BF6);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 16px 18px;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(47, 95, 224, 0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .tariff-card:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(47, 95, 224, 0.45); }
+  .tariff-card.muted { background: linear-gradient(135deg, #4B5563, #6B7280); color: #fff; }
+  .tariff-card .tariff-hint { font-size: 12px; font-weight: 500; opacity: 0.85; white-space: nowrap; }
 
   button.secondary-btn {
     background: var(--surface-alt);
@@ -915,11 +934,13 @@
   <section class="panel tariff-panel" id="tariffPanel" style="display:none">
     <div class="panel-head">
       <h2>تسعيرة الموقف</h2>
-      <button class="secondary-btn" id="tariffEditBtn" type="button">تعديل</button>
     </div>
 
     <div class="tariff-body">
-      <div class="tariff-line" id="tariffLine"></div>
+      <div class="tariff-card" id="tariffCard" role="button" tabindex="0">
+        <span id="tariffLine"></span>
+        <span class="tariff-hint">✎ اضغط للتعديل</span>
+      </div>
 
       <form class="tariff-form" id="tariffForm" style="display:none">
         <div class="field-row">
@@ -1515,8 +1536,8 @@
         <td class="plate">${escapeHtml(s.plate_number)}</td>
         <td class="admin-col">${escapeHtml(parkName)}</td>
         <td class="admin-col">${escapeHtml(governorate)}</td>
-        <td class="numeric">${timeFmt.format(entry)}</td>
-        <td class="numeric">${timeFmt.format(exit)}</td>
+        <td class="numeric">${dateTimeFmt.format(entry)}</td>
+        <td class="numeric">${dateTimeFmt.format(exit)}</td>
         <td class="numeric">${formatDuration(exit - entry)}</td>
         <td class="numeric">${amount}</td>
       </tr>`;
@@ -1862,7 +1883,7 @@
     const summary = tariffSummary();
     const line = $("tariffLine");
     line.textContent = summary ?? "لم تُحدَّد تسعيرة — يُدخل العامل المبلغ يدوياً";
-    line.classList.toggle("muted", summary === null);
+    $("tariffCard").classList.toggle("muted", summary === null);
   }
 
   /// Fills the form from what is stored, so opening it never silently
@@ -1896,13 +1917,15 @@
 
   function openTariffForm(open) {
     $("tariffForm").style.display = open ? "" : "none";
-    $("tariffLine").style.display = open ? "none" : "";
-    $("tariffEditBtn").style.display = open ? "none" : "";
+    $("tariffCard").style.display = open ? "none" : "";
     $("tariffMsg").className = "form-msg";
     if (open) fillTariffForm();
   }
 
-  $("tariffEditBtn").addEventListener("click", () => openTariffForm(true));
+  $("tariffCard").addEventListener("click", () => openTariffForm(true));
+  $("tariffCard").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTariffForm(true); }
+  });
   $("tariffCancelBtn").addEventListener("click", () => openTariffForm(false));
 
   $("tariffForm").addEventListener("submit", async (e) => {
