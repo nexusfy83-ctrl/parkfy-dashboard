@@ -801,6 +801,8 @@
   }
   .sub-glass .sub-name { font-size: 15.5px; font-weight: 700; }
   .sub-glass .sub-phone { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .sub-glass .sub-amount { font-size: 13.5px; font-weight: 700; margin-top: 4px; color: var(--success); }
+  .sub-glass .sub-amount.missing { color: var(--warning); font-weight: 600; font-size: 12.5px; }
   .sub-glass .sub-top { justify-content: center; gap: 12px; margin-bottom: 6px; }
 
   .car-svg { display: block; width: 100%; max-width: 250px; margin: 0 auto; animation: carIdle 3.2s ease-in-out infinite; }
@@ -1189,7 +1191,7 @@
         <div class="field-row">
           <label class="field"><span>من تاريخ</span><input id="sfFrom" type="date" required /></label>
           <label class="field"><span>إلى تاريخ</span><input id="sfTo" type="date" required /></label>
-          <label class="field"><span>مبلغ الاشتراك</span><input id="sfAmount" type="number" min="0" step="any" inputmode="decimal" /></label>
+          <label class="field"><span>مبلغ الاشتراك</span><input id="sfAmount" type="number" min="0" step="any" inputmode="decimal" required /></label>
         </div>
         <div class="form-msg" id="subsFormMsg"></div>
         <div class="form-actions">
@@ -2646,7 +2648,7 @@
       <rect x="64" y="92" width="112" height="24" rx="4" fill="#FFFFFF" stroke="#12204F" stroke-width="2"/>
       <rect x="64" y="92" width="10" height="24" rx="2" fill="#2F5FE0"/>
       <text x="125" y="109.5" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace"
-            font-size="${size}" font-weight="700" fill="#12204F" direction="ltr">${text}</text>
+            font-size="${size}" font-weight="700" fill="#12204F" direction="ltr" unicode-bidi="isolate">&#x2066;${text}&#x2069;</text>
     </svg>`;
   }
 
@@ -2671,8 +2673,7 @@
     const details = s.status === "pending"
       ? `طُلب في ${dateTimeFmt.format(new Date(s.requested_at))}`
       : `من <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.start_date))}</strong>
-         إلى <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.end_date))}</strong>
-         ${s.amount != null ? `<br>المبلغ: <strong class="numeric">${numberFmt.format(Number(s.amount))}</strong> ${escapeHtml(currency())}` : ""}`;
+         إلى <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.end_date))}</strong>`;
 
     const actions = s.status === "pending"
       ? `<button class="primary-btn" data-action="activate" data-id="${s.id}" type="button">تفعيل</button>
@@ -2688,6 +2689,9 @@
         </div>
         <div class="sub-name">${s.customer_name ? escapeHtml(s.customer_name) : "بدون اسم"}</div>
         ${s.phone ? `<div class="sub-phone" dir="ltr">${escapeHtml(s.phone)}</div>` : ""}
+        ${s.status === "pending" ? "" : s.amount != null
+          ? `<div class="sub-amount">المبلغ: <span class="numeric">${numberFmt.format(Number(s.amount))}</span> ${escapeHtml(currency())}</div>`
+          : `<div class="sub-amount missing">بدون مبلغ — اضغط تجديد لإدخاله</div>`}
       </div>
       ${carSvg(s.plate_number)}
       <div class="sub-details">${details}</div>
@@ -2791,7 +2795,8 @@
     if (!plate) return fail("أدخل رقم اللوحة");
     if (!from || !to) return fail("اختر تاريخ البداية والنهاية");
     if (to < from) return fail("تاريخ النهاية قبل تاريخ البداية");
-    if (amountRaw !== "" && !(Number(amountRaw) >= 0)) return fail("المبلغ غير صحيح");
+    // Required: a pass with no amount silently drops out of sales.
+    if (amountRaw === "" || !(Number(amountRaw) >= 0)) return fail("أدخل مبلغ الاشتراك");
 
     const body = {
       plate_number: plate,
