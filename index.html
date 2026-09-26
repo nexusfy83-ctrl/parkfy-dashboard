@@ -406,7 +406,46 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    /* Brand artwork behind the sign-in card, darkened so the card reads. */
+    background:
+      linear-gradient(180deg, rgba(5, 5, 10, 0.55), rgba(5, 5, 10, 0.8)),
+      url("dashboard-icons/parkfy-hero.webp") center / cover no-repeat,
+      #0A0A0F;
   }
+  .login-wrap .login-card {
+    background: rgba(18, 20, 28, 0.72);
+    border-color: rgba(255, 70, 70, 0.25);
+    color: #F2F3F7;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .login-wrap .login-card h1,
+  .login-wrap .login-card label { color: #F2F3F7; }
+  .login-wrap .login-card .sub { color: rgba(242, 243, 247, 0.7); }
+
+  /* Compact brand banner at the top of the dashboard. */
+  .parkfy-hero {
+    position: relative;
+    height: 150px;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    background: #0A0A0F;
+  }
+  .parkfy-hero img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 16%;
+    display: block;
+  }
+  .parkfy-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.45));
+  }
+  @media (max-width: 600px) { .parkfy-hero { height: 120px; } }
 
   .login-card {
     width: 100%;
@@ -995,6 +1034,10 @@
 </div>
 
 <div class="page hidden" id="dashboardView">
+
+  <div class="parkfy-hero">
+    <img src="dashboard-icons/parkfy-hero.webp" alt="Parkfy" decoding="async" />
+  </div>
 
   <!-- Brand + subscription countdown, always visible — not just a warning
        near expiry like #subBanner below. An owner should be able to glance
