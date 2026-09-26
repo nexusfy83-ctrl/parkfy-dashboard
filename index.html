@@ -506,6 +506,9 @@
 
   .admin-col { display: none; }
   body.admin-mode .admin-col { display: table-cell; }
+  /* Owner-only columns (e.g. subscriber status — the super admin view spans
+     every park and has no one subscriber list to match against). */
+  body.admin-mode .owner-col { display: none; }
 
   /* ---- Parkfy brand + subscription countdown card ---- */
   .parkfy-brand-card {
@@ -709,6 +712,13 @@
   .sub-badge.expired { background: var(--danger-soft); color: var(--danger); }
   .sub-badge.pending { background: var(--surface); color: var(--accent); }
   .sub-card .sub-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .sub-card .sub-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sub-card .sub-days { font-size: 13px; font-weight: 700; }
+  .sub-days.ok { color: var(--success); }
+  .sub-days.soon { color: var(--warning); }
+  .sub-days.expired { color: var(--danger); }
+  .pill.sub-pill { background: var(--accent-soft); color: var(--accent); }
+  .pill.regular-pill { background: var(--surface-alt); color: var(--text-muted); }
 
   button.secondary-btn {
     background: var(--surface-alt);
@@ -1270,10 +1280,11 @@
             <th>الخروج</th>
             <th>المدة</th>
             <th>المبلغ</th>
+            <th class="owner-col">الحالة</th>
           </tr>
         </thead>
         <tbody id="historyBody">
-          <tr class="skeleton-row"><td colspan="7"><div class="skeleton-bar"></div></td></tr>
+          <tr class="skeleton-row"><td colspan="8"><div class="skeleton-bar"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -1580,7 +1591,22 @@
     });
   }
 
+  let lastHistoryRows = [];
+
+  /// Was this exit a monthly subscriber's? Matched by plate (same compact
+  /// normalisation as the app) with a pass covering the exit's calendar day.
+  function isSubscriberExit(s) {
+    const key = normalisePlate(s.plate_number).replace(/ /g, "");
+    const day = toDateInput(new Date(s.exit_time));
+    return subscribers.some((sub) =>
+      sub.status === "active" && sub.start_date && sub.end_date &&
+      normalisePlate(sub.plate_number).replace(/ /g, "") === key &&
+      sub.start_date <= day && day <= sub.end_date
+    );
+  }
+
   function renderHistoryTable(rows) {
+    lastHistoryRows = rows;
     const body = $("historyBody");
     const empty = $("historyEmpty");
     $("historyCount").textContent = numberFmt.format(rows.length);
@@ -1605,6 +1631,9 @@
         <td class="numeric">${dateTimeFmt.format(exit)}</td>
         <td class="numeric">${formatDuration(exit - entry)}</td>
         <td class="numeric">${amount}</td>
+        <td class="owner-col">${isSubscriberExit(s)
+          ? '<span class="pill sub-pill">مشترك</span>'
+          : '<span class="pill regular-pill">عادي</span>'}</td>
       </tr>`;
     }).join("");
   }
@@ -2467,6 +2496,8 @@
     subsLastJson = json;
     subscribers = rows;
     renderSubscribers();
+    // History status (مشترك/عادي) depends on this list — redraw it too.
+    renderHistoryTable(lastHistoryRows);
   }
 
   function subCard(s) {
@@ -2494,8 +2525,20 @@
       : `<button class="secondary-btn" data-action="renew" data-id="${s.id}" type="button">تجديد</button>
          <button class="secondary-btn danger-btn" data-action="delete" data-id="${s.id}" type="button">حذف</button>`;
 
+    let daysLine = "";
+    if (s.status !== "pending") {
+      // Whole days left including today: a pass ending today reads "1 يوم".
+      const left = Math.round((parseDateOnly(s.end_date) - todayDate()) / 86400000) + 1;
+      daysLine = left > 0
+        ? `<span class="sub-days ${state}">متبقي ${left === 1 ? "يوم واحد" : left + " يوم"}</span>`
+        : `<span class="sub-days expired">منتهي منذ ${-left + 1} يوم</span>`;
+    }
+
     return `<div class="sub-card ${state === "ok" ? "" : state}">
-      <span class="sub-badge ${badge[0]}">${badge[1]}</span>
+      <div class="sub-top">
+        <span class="sub-badge ${badge[0]}">${badge[1]}</span>
+        ${daysLine}
+      </div>
       <div class="sub-plate numeric">${escapeHtml(s.plate_number)}</div>
       ${meta ? `<div class="sub-meta">${meta}</div>` : ""}
       <div class="sub-dates">${dates}</div>
@@ -2612,6 +2655,10 @@
       ? `رفض طلب اشتراك اللوحة ${sub.plate_number}؟`
       : `حذف اشتراك اللوحة ${sub.plate_number}؟ ستُعامل كزائر عادي بعدها.`;
     if (!confirm(question)) return;
+    // Deleting a paid pass is not undoable — ask a second time.
+    if (action === "delete" && !confirm(
+      `تأكيد نهائي: سيُحذف اشتراك ${sub.plate_number}${sub.customer_name ? " (" + sub.customer_name + ")" : ""} نهائياً ولا يمكن استرجاعه.\n\nهل أنت متأكد؟`
+    )) return;
 
     btn.disabled = true;
     try {
