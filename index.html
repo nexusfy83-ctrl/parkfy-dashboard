@@ -720,6 +720,102 @@
   .pill.sub-pill { background: var(--accent-soft); color: var(--accent); }
   .pill.regular-pill { background: var(--surface-alt); color: var(--text-muted); }
 
+  /* Subscriptions: small square tile on the page */
+  .subs-tile {
+    position: relative;
+    width: 150px;
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(145deg, #1E4FD8, #6C3BF6);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(76, 60, 230, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    margin: 0 0 16px;
+    font-family: inherit;
+  }
+  .subs-tile:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 14px 30px rgba(76, 60, 230, 0.45); }
+  .subs-tile-icon { width: 58px; height: 44px; color: #fff; animation: tileCarBob 2.6s ease-in-out infinite; }
+  .subs-tile-title { font-size: 13.5px; font-weight: 700; }
+  .subs-tile-count { font-size: 12px; opacity: 0.85; }
+  .subs-tile-badge {
+    position: absolute; top: 8px; inset-inline-end: 8px;
+    min-width: 22px; height: 22px; padding: 0 6px;
+    border-radius: 999px; background: #FF4D4F; color: #fff;
+    font-size: 12px; font-weight: 700; display: grid; place-items: center;
+  }
+  @keyframes tileCarBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+  /* Subscriptions: full-screen view */
+  .subs-modal {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(5, 10, 20, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    overflow-y: auto;
+    padding: 20px 12px 40px;
+  }
+  .subs-modal-inner {
+    max-width: 1100px; margin: 0 auto;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; box-shadow: var(--shadow);
+    animation: modalIn 0.22s ease-out;
+  }
+  .subs-modal-head { position: sticky; top: 0; background: var(--surface); z-index: 1; border-radius: 18px 18px 0 0; }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+  /* One subscriber: a front-view car with the real plate, info on glass above */
+  .subs-grid.cars { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px 16px; }
+  .sub-car {
+    position: relative;
+    padding: 12px 12px 14px;
+    border-radius: 20px;
+    background: radial-gradient(120% 90% at 50% 100%, var(--accent-soft), transparent 70%);
+    animation: carIn 0.45s ease-out both;
+  }
+  .sub-car:nth-child(2) { animation-delay: 0.06s; }
+  .sub-car:nth-child(3) { animation-delay: 0.12s; }
+  .sub-car:nth-child(4) { animation-delay: 0.18s; }
+  @keyframes carIn { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+  .sub-glass {
+    position: relative; z-index: 1;
+    margin: 0 8px -18px;
+    padding: 12px 14px 22px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    text-align: center;
+  }
+  @media (prefers-color-scheme: light) {
+    .sub-glass { background: rgba(255, 255, 255, 0.55); border-color: rgba(47, 95, 224, 0.18); }
+  }
+  .sub-glass .sub-name { font-size: 15.5px; font-weight: 700; }
+  .sub-glass .sub-phone { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .sub-glass .sub-top { justify-content: center; gap: 12px; margin-bottom: 6px; }
+
+  .car-svg { display: block; width: 100%; max-width: 250px; margin: 0 auto; animation: carIdle 3.2s ease-in-out infinite; }
+  .car-svg .headlight { animation: headlight 2.4s ease-in-out infinite; }
+  .sub-car.expired .car-svg { filter: grayscale(0.85); animation: none; }
+  .sub-car.expired .car-svg .headlight { animation: none; opacity: 0.25; }
+  .sub-car.pending .car-svg { opacity: 0.8; }
+  @keyframes carIdle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes headlight { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+
+  .sub-car .sub-details { text-align: center; font-size: 12.5px; color: var(--text-muted); margin-top: 6px; line-height: 1.7; }
+  .sub-car .sub-details strong { color: var(--text); }
+  .sub-car .sub-actions { justify-content: center; }
+  .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
   button.secondary-btn {
     background: var(--surface-alt);
     color: var(--text);
@@ -1058,10 +1154,29 @@
 
   <!-- Monthly subscribers — owner only. Workers file requests from the app;
        the owner activates them here with a from/to date range. -->
-  <section class="panel" id="subsPanel" style="display:none">
-    <div class="panel-head">
+  <!-- A small tile on the page; tapping it opens the full subscribers view. -->
+  <div id="subsPanel" style="display:none">
+    <button class="subs-tile" id="subsTile" type="button">
+      <span class="subs-tile-badge" id="subsTilePending" style="display:none">0</span>
+      <svg class="subs-tile-icon" viewBox="0 0 64 48" aria-hidden="true">
+        <path d="M10 30 L15 16 Q17 11 23 11 H41 Q47 11 49 16 L54 30" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+        <rect x="6" y="28" width="52" height="12" rx="5" fill="currentColor"/>
+        <rect x="23" y="31" width="18" height="6" rx="1.5" fill="#fff"/>
+        <circle cx="13" cy="34" r="2.6" fill="#fff"/><circle cx="51" cy="34" r="2.6" fill="#fff"/>
+      </svg>
+      <span class="subs-tile-title">الاشتراكات الشهرية</span>
+      <span class="subs-tile-count numeric" id="subsTileCount">0 مشترك</span>
+    </button>
+  </div>
+
+  <div class="subs-modal" id="subsModal" hidden>
+    <div class="subs-modal-inner">
+    <div class="panel-head subs-modal-head">
       <h2>الاشتراكات الشهرية</h2>
-      <button class="secondary-btn" id="subsAddBtn" type="button">+ إضافة مشترك</button>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="secondary-btn" id="subsAddBtn" type="button">+ إضافة مشترك</button>
+        <button class="secondary-btn" id="subsCloseBtn" type="button" aria-label="إغلاق">✕</button>
+      </div>
     </div>
     <div class="tariff-body">
       <form class="tariff-form" id="subsForm" style="display:none;margin-top:0">
@@ -1085,14 +1200,15 @@
 
       <div id="subsRequestsWrap" style="display:none">
         <div class="subs-section-title">طلبات اشتراك جديدة</div>
-        <div class="subs-grid" id="subsRequests"></div>
+        <div class="subs-grid cars" id="subsRequests"></div>
       </div>
 
       <div class="subs-section-title" id="subsActiveTitle">المشتركون</div>
-      <div class="subs-grid" id="subsList"></div>
+      <div class="subs-grid cars" id="subsList"></div>
       <div class="empty-state" id="subsEmpty" style="display:none">لا يوجد مشتركون بعد</div>
     </div>
-  </section>
+    </div>
+  </div>
 
   <!-- Super admin only — everything admin_parks_list/create/edit/detail
        screens do in the app, available from the web too. Hidden via JS
@@ -1211,6 +1327,7 @@
     <div class="stat-tile">
       <div class="label" id="labelRevenue">مبيعات اليوم</div>
       <div class="value numeric"><span id="statRevenue">—</span><span class="unit" id="revenueUnit">د.ع</span></div>
+      <div class="stat-sub" id="revenueSubs" style="display:none"></div>
     </div>
     <div class="stat-tile">
       <div class="label" id="labelEntries">عدد السيارات الداخلة اليوم</div>
@@ -2500,6 +2617,39 @@
     renderHistoryTable(lastHistoryRows);
   }
 
+  /// Front view of a car carrying the subscriber's actual plate.
+  function carSvg(plate) {
+    const text = escapeHtml(plate);
+    const size = plate.length > 10 ? 13 : plate.length > 7 ? 15 : 17;
+    return `<svg class="car-svg" viewBox="0 0 240 150" aria-hidden="true">
+      <defs>
+        <linearGradient id="cbody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4F7CF7"/><stop offset="1" stop-color="#1E3FB0"/>
+        </linearGradient>
+        <linearGradient id="cglass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#BFD6FF" stop-opacity=".9"/><stop offset="1" stop-color="#5A7FC7" stop-opacity=".9"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="120" cy="140" rx="96" ry="8" fill="#000" opacity=".18"/>
+      <rect x="30" y="112" width="26" height="24" rx="6" fill="#1B1F2A"/>
+      <rect x="184" y="112" width="26" height="24" rx="6" fill="#1B1F2A"/>
+      <path d="M52 62 L70 26 Q74 18 84 18 H156 Q166 18 170 26 L188 62 Z" fill="url(#cbody)"/>
+      <path d="M62 60 L77 31 Q80 26 87 26 H153 Q160 26 163 31 L178 60 Z" fill="url(#cglass)"/>
+      <path d="M30 70 Q30 60 42 60 H198 Q210 60 210 70 V112 Q210 120 202 120 H38 Q30 120 30 112 Z" fill="url(#cbody)"/>
+      <rect x="22" y="58" width="14" height="8" rx="3" fill="#1E3FB0"/>
+      <rect x="204" y="58" width="14" height="8" rx="3" fill="#1E3FB0"/>
+      <g class="headlight">
+        <rect x="40" y="72" width="38" height="14" rx="7" fill="#FFF7C2"/>
+        <rect x="162" y="72" width="38" height="14" rx="7" fill="#FFF7C2"/>
+      </g>
+      <rect x="86" y="74" width="68" height="10" rx="4" fill="#12204F" opacity=".75"/>
+      <rect x="64" y="92" width="112" height="24" rx="4" fill="#FFFFFF" stroke="#12204F" stroke-width="2"/>
+      <rect x="64" y="92" width="10" height="24" rx="2" fill="#2F5FE0"/>
+      <text x="125" y="109.5" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace"
+            font-size="${size}" font-weight="700" fill="#12204F" direction="ltr">${text}</text>
+    </svg>`;
+  }
+
   function subCard(s) {
     const state = subState(s);
     const badge = {
@@ -2508,22 +2658,6 @@
       soon: ["soon", "ينتهي قريباً"],
       expired: ["expired", "منتهي"],
     }[state];
-    const meta = [
-      s.customer_name ? escapeHtml(s.customer_name) : "",
-      s.phone ? `<span dir="ltr">${escapeHtml(s.phone)}</span>` : "",
-    ].filter(Boolean).join(" · ");
-    const dates = s.status === "pending"
-      ? `طُلب في ${dateTimeFmt.format(new Date(s.requested_at))}`
-      : `من <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.start_date))}</strong>
-         إلى <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.end_date))}</strong>`;
-    const amount = s.status !== "pending" && s.amount != null
-      ? `<div class="sub-meta">المبلغ: <span class="numeric">${numberFmt.format(Number(s.amount))}</span> ${escapeHtml(currency())}</div>`
-      : "";
-    const actions = s.status === "pending"
-      ? `<button class="primary-btn" data-action="activate" data-id="${s.id}" type="button">تفعيل</button>
-         <button class="secondary-btn danger-btn" data-action="reject" data-id="${s.id}" type="button">رفض</button>`
-      : `<button class="secondary-btn" data-action="renew" data-id="${s.id}" type="button">تجديد</button>
-         <button class="secondary-btn danger-btn" data-action="delete" data-id="${s.id}" type="button">حذف</button>`;
 
     let daysLine = "";
     if (s.status !== "pending") {
@@ -2534,15 +2668,29 @@
         : `<span class="sub-days expired">منتهي منذ ${-left + 1} يوم</span>`;
     }
 
-    return `<div class="sub-card ${state === "ok" ? "" : state}">
-      <div class="sub-top">
-        <span class="sub-badge ${badge[0]}">${badge[1]}</span>
-        ${daysLine}
+    const details = s.status === "pending"
+      ? `طُلب في ${dateTimeFmt.format(new Date(s.requested_at))}`
+      : `من <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.start_date))}</strong>
+         إلى <strong class="numeric">${subsDateFmt.format(parseDateOnly(s.end_date))}</strong>
+         ${s.amount != null ? `<br>المبلغ: <strong class="numeric">${numberFmt.format(Number(s.amount))}</strong> ${escapeHtml(currency())}` : ""}`;
+
+    const actions = s.status === "pending"
+      ? `<button class="primary-btn" data-action="activate" data-id="${s.id}" type="button">تفعيل</button>
+         <button class="secondary-btn danger-btn" data-action="reject" data-id="${s.id}" type="button">رفض</button>`
+      : `<button class="secondary-btn" data-action="renew" data-id="${s.id}" type="button">تجديد</button>
+         <button class="secondary-btn danger-btn" data-action="delete" data-id="${s.id}" type="button">حذف</button>`;
+
+    return `<div class="sub-car ${state}">
+      <div class="sub-glass">
+        <div class="sub-top">
+          <span class="sub-badge ${badge[0]}">${badge[1]}</span>
+          ${daysLine}
+        </div>
+        <div class="sub-name">${s.customer_name ? escapeHtml(s.customer_name) : "بدون اسم"}</div>
+        ${s.phone ? `<div class="sub-phone" dir="ltr">${escapeHtml(s.phone)}</div>` : ""}
       </div>
-      <div class="sub-plate numeric">${escapeHtml(s.plate_number)}</div>
-      ${meta ? `<div class="sub-meta">${meta}</div>` : ""}
-      <div class="sub-dates">${dates}</div>
-      ${amount}
+      ${carSvg(s.plate_number)}
+      <div class="sub-details">${details}</div>
       <div class="sub-actions">${actions}</div>
     </div>`;
   }
@@ -2558,6 +2706,37 @@
     $("subsList").innerHTML = active.map(subCard).join("");
     $("subsActiveTitle").textContent = `المشتركون (${active.length})`;
     $("subsEmpty").style.display = active.length ? "none" : "";
+
+    $("subsTileCount").textContent = `${active.length} مشترك`;
+    const badge = $("subsTilePending");
+    badge.textContent = pending.length;
+    badge.style.display = pending.length ? "" : "none";
+  }
+
+  function openSubsModal() {
+    $("subsModal").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeSubsModal() {
+    $("subsModal").hidden = true;
+    document.body.style.overflow = "";
+    closeSubsForm();
+  }
+  $("subsTile").addEventListener("click", openSubsModal);
+  $("subsCloseBtn").addEventListener("click", closeSubsModal);
+  $("subsModal").addEventListener("click", (e) => { if (e.target.id === "subsModal") closeSubsModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("subsModal").hidden) closeSubsModal(); });
+
+  /// Subscription money received in [from, to], counted by activation time.
+  function subscriptionRevenue(from, to) {
+    const lo = new Date(from), hi = new Date(to);
+    return subscribers
+      .filter((s) => {
+        if (s.status !== "active" || !s.activated_at || s.amount == null) return false;
+        const t = new Date(s.activated_at);
+        return t >= lo && t <= hi;
+      })
+      .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
   }
 
   function openSubsForm(sub, mode) {
@@ -2699,8 +2878,17 @@
       renderHistoryTable(closed);
       renderChart(closed);
 
-      const revenue = closed.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-      $("statRevenue").textContent = numberFmt.format(revenue);
+      // Subscriptions load in their own catch so a missing table (SQL not run
+      // yet) can't take the dashboard down; awaited here because sales now
+      // include the subscription money taken in this period.
+      await loadSubscribers().catch(() => { $("subsPanel").style.display = "none"; });
+
+      const parkingRevenue = closed.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+      const subsRevenue = isSuperAdmin ? 0 : subscriptionRevenue(from, to);
+      $("statRevenue").textContent = numberFmt.format(parkingRevenue + subsRevenue);
+      const subsLine = $("revenueSubs");
+      subsLine.style.display = subsRevenue > 0 ? "" : "none";
+      subsLine.textContent = `منها اشتراكات: ${numberFmt.format(subsRevenue)}`;
       $("statEntries").textContent = numberFmt.format(entries.length);
       $("labelRevenue").textContent = PERIOD_LABEL[period].revenue;
       $("labelEntries").textContent = PERIOD_LABEL[period].entries;
@@ -2710,9 +2898,6 @@
       renderTariff();
       renderSubscription(ownLot());
       renderParkfyBrandCard();
-      // Separate from the batch above: a missing subscribers table (SQL not
-      // run yet) must not take the whole dashboard down with it.
-      loadSubscribers().catch(() => { $("subsPanel").style.display = "none"; });
 
       $("lastUpdated").textContent = "آخر تحديث: " + timeFmt.format(new Date());
       setLive(true);
