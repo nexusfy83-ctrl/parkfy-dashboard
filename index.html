@@ -2732,9 +2732,13 @@
     const lo = new Date(from), hi = new Date(to);
     return subscribers
       .filter((s) => {
-        if (s.status !== "active" || !s.activated_at || s.amount == null) return false;
-        const t = new Date(s.activated_at);
-        return t >= lo && t <= hi;
+        if (s.status !== "active" || s.amount == null) return false;
+        // Counted when the money was taken (activation). Rows without an
+        // activation time (e.g. added straight in the table editor) fall back
+        // to the pass's start date.
+        const t = s.activated_at ? new Date(s.activated_at)
+          : s.start_date ? parseDateOnly(s.start_date) : null;
+        return t !== null && t >= lo && t <= hi;
       })
       .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
   }
